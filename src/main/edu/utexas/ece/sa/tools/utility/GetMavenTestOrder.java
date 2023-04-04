@@ -1,7 +1,7 @@
 package edu.utexas.ece.sa.tools.utility;
 
 import com.reedoei.eunomia.util.StandardMain;
-import edu.utexas.ece.sa.tools.configuration.Configuration;
+import edu.illinois.cs.testrunner.configuration.Configuration;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;

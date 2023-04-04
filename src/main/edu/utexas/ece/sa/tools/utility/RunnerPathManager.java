@@ -1,9 +1,8 @@
 package edu.utexas.ece.sa.tools.utility;
 
 import com.google.common.base.Preconditions;
-import edu.utexas.ece.sa.tools.configuration.Configuration;
+import edu.illinois.cs.testrunner.configuration.Configuration;
 import edu.utexas.ece.sa.tools.core.TestPluginUtil;
-import edu.utexas.ece.sa.tools.utility.ProjectWrapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
