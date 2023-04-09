@@ -2,10 +2,13 @@ package edu.utexas.ece.sa.tools.parser;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.Range;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.nodeTypes.NodeWithExtends;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
@@ -171,9 +174,19 @@ public class ParserMojo extends AbstractParserMojo {
             final Set<String> testClasses = getTestClasses(tests);
             // Get all test source files
             final List<Path> testFiles = testSources();
+            // Get all test source files for upper module
+            final List<Path> wholeTestFiles = wholeTestSources();
+            // Get all java source files
+            final List<Path> javaFiles = javaSources();
             // read the test class file one by one
             for (String testClass : testClasses) {
-                System.out.println("TEST CLASS: " + testClass);
+                /* if (!testClass.equals("com.vmware.admiral.compute.container.HealthConfigServiceTest")) {
+                    continue;
+                } */
+                /* if (!testClass.equals("io.undertow.server.handlers.proxy.ProxyPathHandlingTest")) {
+                    continue;
+                } */
+                // System.out.println("TEST CLASS: " + testClass);
                 for (final Path file : testFiles) {
                     if (Files.exists(file) && FilenameUtils.isExtension(file.getFileName().toString(), "java")) {
                         Set<FieldDeclaration> globalFields = new HashSet<>();
@@ -182,6 +195,52 @@ public class ParserMojo extends AbstractParserMojo {
                         if (testClass.endsWith(fileShortName)) {
                             final JavaFile javaFile = JavaFile.loadFile(file, classpath(), ParserPathManager.compiledPath(file).getParent(), fileShortName, "");
                             backup(javaFile);
+                            Map<Integer, Set<String>> upperLevelClassNames = new HashMap<>();
+                            final Map<Integer, Set<JavaFile>> upperLevelFiles = new HashMap<>();
+                            int level = 0;
+                            for (ClassOrInterfaceDeclaration ci : javaFile.getClassList()) {
+                                if ((javaFile.compilationUnit().getPackageDeclaration().get().getName().toString() + "." + ci.getNameAsString()).equals(testClass)) {
+                                    // put the first level test classes
+                                    Set<String> currentLevelClasses = getUpperLevelClasses(ci);
+                                    upperLevelClassNames.put(level, currentLevelClasses);
+                                    while (!currentLevelClasses.isEmpty()) {
+                                        for (String upperLevelClassName : currentLevelClasses) {
+                                            for (final Path anotherFile : wholeTestFiles) {
+                                                if (Files.exists(anotherFile) && FilenameUtils.isExtension(anotherFile.getFileName().toString(), "java")) {
+                                                    if (anotherFile.getFileName().toString().endsWith(upperLevelClassName + ".java")) {
+                                                        String newFileName = anotherFile.getFileName().toString();
+                                                        String newFileShortName = newFileName.substring(0, newFileName.lastIndexOf("."));
+                                                        JavaFile newJavaFile = JavaFile.loadFile(anotherFile, classpath(), ParserPathManager.compiledPath(anotherFile).getParent(), newFileShortName, "");
+                                                        javaFile.setExtendedJavaFile(newJavaFile);
+                                                        Set<JavaFile> curLevelFiles = new HashSet<>();
+                                                        if (upperLevelFiles.containsKey(level)) {
+                                                            curLevelFiles = upperLevelFiles.get(level);
+                                                            curLevelFiles.add(newJavaFile);
+                                                        } else {
+                                                            curLevelFiles.add(newJavaFile);
+                                                            upperLevelFiles.put(level, curLevelFiles);
+                                                        }
+                                                        Set<String> newCurLvlClasses = new HashSet<>();
+                                                        Set<String> newUpperClasses = getUpperLevelClasses(newJavaFile.getCurCI());
+                                                        if (!upperLevelClassNames.containsKey(level + 1)) {
+                                                            newCurLvlClasses.addAll(newUpperClasses);
+                                                            upperLevelClassNames.put(level + 1, newCurLvlClasses);
+                                                        } else {
+                                                            newCurLvlClasses = upperLevelClassNames.get(level + 1);
+                                                            newCurLvlClasses.addAll(newUpperClasses);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        level += 1;
+                                        currentLevelClasses = upperLevelClassNames.getOrDefault(level + 1, new HashSet<>());
+                                    }
+                                    break;
+                                }
+                            }
+                            // System.exit(0);
+                            // System.out.println("UPPER: " + javaFile.getClassList());
                             // JUnit 4
                             if (this.runner.framework().getDelimiter().equals(".")) {
                                 // rule field
@@ -352,8 +411,7 @@ public class ParserMojo extends AbstractParserMojo {
                                     System.out.println("4: " + md.getBody().get()); */
                                     newMD.setThrownExceptions(md.getThrownExceptions());
                                     newMD.setBody(md.getBody().get());
-                                    Class clazz = projectClassLoader().loadClass("org.junit.Test");
-                                    newMD.addMarkerAnnotation(clazz);
+                                    newMD.setAnnotations(md.getAnnotations());
                                     javaFile1.writeAndReloadCompilationUnit();
                                 }
                                 result = MvnCommands.runMvnInstall(mavenProject, false);
@@ -389,6 +447,16 @@ public class ParserMojo extends AbstractParserMojo {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    protected Set<String> getUpperLevelClasses(ClassOrInterfaceDeclaration ci) {
+        Set<String> set = new HashSet<>();
+        System.out.println(ci.getExtendedTypes());
+        for (ClassOrInterfaceType type : ci.getExtendedTypes()) {
+            set.add(type.getNameAsString());
+        }
+        // set.add(ci.getExtendedTypes().);
+        return set;
     }
 
     private void obtainLastestTestResults(Map<String, TestResult> map, Set<String> failedTests) {
@@ -497,6 +565,38 @@ public class ParserMojo extends AbstractParserMojo {
                     .forEach(testFiles::add);
         }
         return testFiles;
+    }
+
+    private List<Path> wholeTestSources() throws IOException {
+        final List<Path> testFiles = new ArrayList<>();
+        MavenProject upperProject = mavenProject;
+        while (upperProject.hasParent()) {
+            upperProject = upperProject.getParent();
+        }
+        // System.out.println(upperProject.getBuild().getSourceDirectory());
+        for (String moduleName : upperProject.getModules()) {
+            String append = File.separator + moduleName;
+            try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + append + "/src/test/java"))) {
+                paths.filter(Files::isRegularFile)
+                        .forEach(testFiles::add);
+            } catch (Exception ex) {
+                // ex.printStackTrace();
+            }
+        }
+        /* try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBuild().getTestSourceDirectory()))) {
+            paths.filter(Files::isRegularFile)
+                    .forEach(testFiles::add);
+        } */
+        return testFiles;
+    }
+
+    private List<Path> javaSources() throws IOException {
+        final List<Path> javaFiles = new ArrayList<>();
+        try (final Stream<Path> paths = Files.walk(Paths.get(mavenProject.getBuild().getSourceDirectory()))) {
+            paths.filter(Files::isRegularFile)
+                    .forEach(javaFiles::add);
+        }
+        return javaFiles;
     }
 
     private void backup(final JavaFile javaFile) throws IOException {

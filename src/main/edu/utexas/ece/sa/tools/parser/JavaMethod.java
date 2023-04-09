@@ -30,7 +30,7 @@ public class JavaMethod {
             if (Files.exists(file) && FilenameUtils.isExtension(file.getFileName().toString(), "java")) {
                 String fileName = file.getFileName().toString();
                 String fileShortName = fileName.substring(0, fileName.lastIndexOf("."));
-                final JavaFile javaFile = JavaFile.loadFile(file, classpath, ParserPathManager.compiledPath(file).getParent(), fileShortNamesrc/main/edu/utexas/ece/sa/tools/utility/RunnerPathManager.java, "");
+                final JavaFile javaFile = JavaFile.loadFile(file, classpath, ParserPathManager.compiledPath(file).getParent(), fileShortName, "");
 
                 final MethodDeclaration methodDeclaration = javaFile.findMethodDeclaration(methodName);
 

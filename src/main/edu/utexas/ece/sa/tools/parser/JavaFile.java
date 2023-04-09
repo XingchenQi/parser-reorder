@@ -47,11 +47,21 @@ public class JavaFile {
     private final Path path;
     private final String classPath;
     private final Path compiledOutputDir;
+    private JavaFile extendedJavaFile = null;
+    private ClassOrInterfaceDeclaration curCI = null;
 
     private JavaFile(final Path path, final String classPath, final Path compiledOutputDir) {
         this.path = path;
         this.classPath = classPath;
         this.compiledOutputDir = compiledOutputDir;
+    }
+
+    public void setExtendedJavaFile(JavaFile javaFile) {
+        extendedJavaFile = javaFile;
+    }
+
+    public JavaFile getExtendedJavaFile(JavaFile javaFile) {
+        return extendedJavaFile;
     }
 
     public List<Diagnostic<? extends JavaFileObject>> compile() throws Exception {
@@ -74,6 +84,9 @@ public class JavaFile {
         return compiledOutputDir;
     }
 
+    public ClassOrInterfaceDeclaration getCurCI() {
+        return curCI;
+    }
 
     /**
      * Finds all classes/interfaces in the file and saves them.
@@ -89,6 +102,7 @@ public class JavaFile {
         for (ClassOrInterfaceDeclaration coi : classList) {
             // System.out.println("CLASS: " + coi.getNameAsString() + " " + simpleName);
             if (coi.getNameAsString().equals(simpleName)) {
+                curCI = coi;
                 coi.setName(simpleName + "" + extensions);
                 break;
             }
@@ -114,6 +128,10 @@ public class JavaFile {
         });
 
         return this;
+    }
+
+    public List<ClassOrInterfaceDeclaration> getClassList() {
+        return classList;
     }
 
     private boolean areJUnitAnnotations(final List<AnnotationExpr> annotations) {
