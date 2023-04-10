@@ -49,6 +49,7 @@ public class JavaFile {
     private final Path compiledOutputDir;
     private JavaFile extendedJavaFile = null;
     private ClassOrInterfaceDeclaration curCI = null;
+    private int curIndex = 0;
 
     private JavaFile(final Path path, final String classPath, final Path compiledOutputDir) {
         this.path = path;
@@ -60,8 +61,20 @@ public class JavaFile {
         extendedJavaFile = javaFile;
     }
 
-    public JavaFile getExtendedJavaFile(JavaFile javaFile) {
+    public JavaFile getExtendedJavaFile() {
         return extendedJavaFile;
+    }
+
+    public boolean hasExtendedJavaFile() {
+        return extendedJavaFile == null ? false : true;
+    }
+
+    public void setCurIndex(int index) {
+        curIndex = index;
+    }
+
+    public int getCurIndex() {
+        return curIndex;
     }
 
     public List<Diagnostic<? extends JavaFileObject>> compile() throws Exception {
@@ -102,8 +115,8 @@ public class JavaFile {
         for (ClassOrInterfaceDeclaration coi : classList) {
             // System.out.println("CLASS: " + coi.getNameAsString() + " " + simpleName);
             if (coi.getNameAsString().equals(simpleName)) {
-                curCI = coi;
                 coi.setName(simpleName + "" + extensions);
+                curCI = coi;
                 break;
             }
         }
@@ -205,6 +218,24 @@ public class JavaFile {
         }
 
         return null;
+    }
+
+    public List<MethodDeclaration> findMethodDeclarations(final String name) {
+        List<MethodDeclaration> list = new LinkedList<>();
+        for (final ClassOrInterfaceDeclaration classDeclaration : classList) {
+            for (final BodyDeclaration bodyDeclaration : classDeclaration.getMembers()) {
+                if (bodyDeclaration instanceof MethodDeclaration) {
+                    final MethodDeclaration method = (MethodDeclaration)bodyDeclaration;
+                    final String fullMethodName = getFullyQualifiedMethodName(method, classDeclaration);
+                    // System.out.println("NAME: " + fullMethodName + " : " + name);
+                    if (fullMethodName.equalsIgnoreCase(name)) {
+                        list.add(method);
+                    }
+                }
+            }
+        }
+
+        return list;
     }
 
     public FieldDeclaration findFieldDeclaration(final String name) {

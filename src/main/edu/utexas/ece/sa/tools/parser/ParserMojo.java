@@ -53,6 +53,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -198,180 +199,46 @@ public class ParserMojo extends AbstractParserMojo {
                             Map<Integer, Set<String>> upperLevelClassNames = new HashMap<>();
                             final Map<Integer, Set<JavaFile>> upperLevelFiles = new HashMap<>();
                             int level = 0;
-                            for (ClassOrInterfaceDeclaration ci : javaFile.getClassList()) {
-                                if ((javaFile.compilationUnit().getPackageDeclaration().get().getName().toString() + "." + ci.getNameAsString()).equals(testClass)) {
-                                    // put the first level test classes
-                                    Set<String> currentLevelClasses = getUpperLevelClasses(ci);
-                                    upperLevelClassNames.put(level, currentLevelClasses);
-                                    while (!currentLevelClasses.isEmpty()) {
-                                        for (String upperLevelClassName : currentLevelClasses) {
-                                            for (final Path anotherFile : wholeTestFiles) {
-                                                if (Files.exists(anotherFile) && FilenameUtils.isExtension(anotherFile.getFileName().toString(), "java")) {
-                                                    if (anotherFile.getFileName().toString().endsWith(upperLevelClassName + ".java")) {
-                                                        String newFileName = anotherFile.getFileName().toString();
-                                                        String newFileShortName = newFileName.substring(0, newFileName.lastIndexOf("."));
-                                                        JavaFile newJavaFile = JavaFile.loadFile(anotherFile, classpath(), ParserPathManager.compiledPath(anotherFile).getParent(), newFileShortName, "");
-                                                        javaFile.setExtendedJavaFile(newJavaFile);
-                                                        Set<JavaFile> curLevelFiles = new HashSet<>();
-                                                        if (upperLevelFiles.containsKey(level)) {
-                                                            curLevelFiles = upperLevelFiles.get(level);
-                                                            curLevelFiles.add(newJavaFile);
-                                                        } else {
-                                                            curLevelFiles.add(newJavaFile);
-                                                            upperLevelFiles.put(level, curLevelFiles);
-                                                        }
-                                                        Set<String> newCurLvlClasses = new HashSet<>();
-                                                        Set<String> newUpperClasses = getUpperLevelClasses(newJavaFile.getCurCI());
-                                                        if (!upperLevelClassNames.containsKey(level + 1)) {
-                                                            newCurLvlClasses.addAll(newUpperClasses);
-                                                            upperLevelClassNames.put(level + 1, newCurLvlClasses);
-                                                        } else {
-                                                            newCurLvlClasses = upperLevelClassNames.get(level + 1);
-                                                            newCurLvlClasses.addAll(newUpperClasses);
-                                                        }
+                            // put the first level test classes
+                            Set<String> currentLevelClasses = getUpperLevelClasses(javaFile, wholeTestFiles);
+                            upperLevelClassNames.put(level, currentLevelClasses);
+
+                            while (!currentLevelClasses.isEmpty()) {
+                                for (String currentLevelClassName : currentLevelClasses) {
+                                    for (final Path anotherFile : wholeTestFiles) {
+                                        if (Files.exists(anotherFile) && FilenameUtils.isExtension(anotherFile.getFileName().toString(), "java")) {
+                                            if (anotherFile.getFileName().toString().equals(currentLevelClassName + ".java")) {
+                                                String newFileName = anotherFile.getFileName().toString();
+                                                String newFileShortName = newFileName.substring(0, newFileName.lastIndexOf("."));
+                                                JavaFile newJavaFile = JavaFile.loadFile(anotherFile, classpath(), ParserPathManager.compiledPath(anotherFile).getParent(), newFileShortName, "");
+                                                Set<JavaFile> curLevelFiles = new HashSet<>();
+                                                if (upperLevelFiles.containsKey(level)) {
+                                                    curLevelFiles = upperLevelFiles.get(level);
+                                                    curLevelFiles.add(newJavaFile);
+                                                } else {
+                                                    curLevelFiles.add(newJavaFile);
+                                                    upperLevelFiles.put(level, curLevelFiles);
+                                                }
+                                                Set<String> newCurLvlClasses = new HashSet<>();
+                                                Set<String> newUpperClasses = getUpperLevelClasses(newJavaFile, wholeTestFiles);
+                                                if (!newUpperClasses.isEmpty()) {
+                                                    if (!upperLevelClassNames.containsKey(level + 1)) {
+                                                        newCurLvlClasses.addAll(newUpperClasses);
+                                                        upperLevelClassNames.put(level + 1, newCurLvlClasses);
+                                                    } else {
+                                                        newCurLvlClasses = upperLevelClassNames.get(level + 1);
+                                                        newCurLvlClasses.addAll(newUpperClasses);
                                                     }
                                                 }
                                             }
                                         }
-                                        level += 1;
-                                        currentLevelClasses = upperLevelClassNames.getOrDefault(level + 1, new HashSet<>());
                                     }
-                                    break;
                                 }
+                                level += 1;
+                                currentLevelClasses = upperLevelClassNames.getOrDefault(level, new HashSet<>());
                             }
                             // System.exit(0);
-                            // System.out.println("UPPER: " + javaFile.getClassList());
-                            // JUnit 4
-                            if (this.runner.framework().getDelimiter().equals(".")) {
-                                // rule field
-                                FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("");
-                                if (ruleField != null) {
-                                    ruleField.setStatic(true);
-                                    NodeList<AnnotationExpr> ruleFieldAnnotations = ruleField.getAnnotations();
-                                    int i = 0;
-                                    for (i = 0; i < ruleFieldAnnotations.size(); i++) {
-                                        AnnotationExpr ruleFieldAnnotation = ruleFieldAnnotations.get(i);
-                                        if (ruleFieldAnnotation.getName().toString().equals("Rule")) {
-                                            Class clazz = projectClassLoader().loadClass("org.junit.ClassRule");
-                                            ruleField.tryAddImportToParentCompilationUnit(clazz);
-                                            MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                                            ruleField.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
-                                            break;
-                                        }
-                                    }
-                                    // System.out.println(ruleField);
-                                }
-                                // Before method
-                                MethodDeclaration beforeMethod = javaFile.findMethodWithAnnotations("Before");
-                                if (beforeMethod != null) {
-                                    beforeMethod.setStatic(true);
-                                    NodeList<AnnotationExpr> beforeMethodAnnotations = beforeMethod.getAnnotations();
-                                    int i = 0;
-                                    for (i = 0; i < beforeMethodAnnotations.size(); i++) {
-                                        AnnotationExpr beforeMethodAnnotation = beforeMethodAnnotations.get(i);
-                                        if (beforeMethodAnnotation.getName().toString().equals("Before")) {
-                                            Class clazz = projectClassLoader().loadClass("org.junit.BeforeClass");
-                                            beforeMethod.tryAddImportToParentCompilationUnit(clazz);
-                                            MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                                            beforeMethod.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
-                                            break;
-                                        }
-                                    }
-                                    System.out.println(beforeMethod);
-                                    Set<String> set = getRelatedFields(beforeMethod);
-                                    for (String fieldName : set) {
-                                        FieldDeclaration field = javaFile.findFieldDeclaration(fieldName);
-                                        if (field != null) {
-                                            field.setStatic(true);
-                                        }
-                                    }
-                                }
-                                // After Method
-                                MethodDeclaration afterMethod = javaFile.findMethodWithAnnotations("After");
-                                if (afterMethod != null) {
-                                    afterMethod.setStatic(true);
-                                    NodeList<AnnotationExpr> afterMethodAnnotations = afterMethod.getAnnotations();
-                                    int i = 0;
-                                    for (i = 0; i < afterMethodAnnotations.size(); i++) {
-                                        AnnotationExpr afterMethodAnnotation = afterMethodAnnotations.get(i);
-                                        if (afterMethodAnnotation.getName().toString().equals("After")) {
-                                            Class clazz = projectClassLoader().loadClass("org.junit.AfterClass");
-                                            afterMethod.tryAddImportToParentCompilationUnit(clazz);
-                                            MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                                            afterMethod.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
-                                            break;
-                                        }
-                                    }
-                                    System.out.println(afterMethod);
-                                    Set<String> set = getRelatedFields(afterMethod);
-                                    for (String fieldName : set) {
-                                        FieldDeclaration field = javaFile.findFieldDeclaration(fieldName);
-                                        if (field != null) {
-                                            field.setStatic(true);
-                                        }
-                                    }
-                                }
-
-                            }
-                            // JUnit 5
-                            if (this.runner.framework().getDelimiter().equals("#")) {
-                                /* List<FieldDeclaration> fields = javaFile.findFieldDeclarations();
-                                for (FieldDeclaration field : fields) {
-                                    field.setStatic(true);
-                                } */
-                                // BeforeEach method
-                                MethodDeclaration beforeEachMethod = javaFile.findMethodWithAnnotations("BeforeEach");
-                                if (beforeEachMethod != null) {
-                                    beforeEachMethod.setStatic(true);
-                                    NodeList<AnnotationExpr> beforeEachMethodAnnotations = beforeEachMethod.getAnnotations();
-                                    int i = 0;
-                                    for (i = 0; i < beforeEachMethodAnnotations.size(); i++) {
-                                        AnnotationExpr beforeEachMethodAnnotation = beforeEachMethodAnnotations.get(i);
-                                        if (beforeEachMethodAnnotation.getName().toString().equals("BeforeEach")) {
-                                            Class clazz = projectClassLoader().loadClass("org.junit.jupiter.api.BeforeAll");
-                                            beforeEachMethod.tryAddImportToParentCompilationUnit(clazz);
-                                            MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                                            beforeEachMethod.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
-                                            break;
-                                        }
-                                    }
-                                    Set<String> set = getRelatedFields(beforeEachMethod);
-                                    System.out.println(beforeEachMethod);
-                                    for (String fieldName : set) {
-                                        // System.out.println("field: " + fieldName);
-                                        FieldDeclaration field = javaFile.findFieldDeclaration(fieldName);
-                                        if (field != null) {
-                                            field.setStatic(true);
-                                        }
-                                    }
-                                }
-                                // AfterEach Method
-                                MethodDeclaration afterEachMethod = javaFile.findMethodWithAnnotations("AfterEach");
-                                if (afterEachMethod != null) {
-                                    afterEachMethod.setStatic(true);
-                                    NodeList<AnnotationExpr> afterEachMethodAnnotations = afterEachMethod.getAnnotations();
-                                    int i = 0;
-                                    for (i = 0; i < afterEachMethodAnnotations.size(); i++) {
-                                        AnnotationExpr afterEachMethodAnnotation = afterEachMethodAnnotations.get(i);
-                                        if (afterEachMethodAnnotation.getName().toString().equals("AfterEach")) {
-                                            Class clazz = projectClassLoader().loadClass("org.junit.jupiter.api.AfterAll");
-                                            afterEachMethod.tryAddImportToParentCompilationUnit(clazz);
-                                            MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                                            afterEachMethod.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
-                                            break;
-                                        }
-                                    }
-                                    System.out.println(afterEachMethod);
-                                    Set<String> set = getRelatedFields(afterEachMethod);
-                                    for (String fieldName : set) {
-                                        FieldDeclaration field = javaFile.findFieldDeclaration(fieldName);
-                                        if (field != null) {
-                                            field.setStatic(true);
-                                        }
-                                    }
-                                }
-                            }
-                            javaFile.writeAndReloadCompilationUnit();
+                            updateJUnitTestFiles(javaFile, wholeTestFiles);
                             boolean result = MvnCommands.runMvnInstall(mavenProject, false);
                             System.out.println("MVN OUTPUT: " + result);
                             List<String> testsForNewClass = new LinkedList<>();
@@ -436,10 +303,6 @@ public class ParserMojo extends AbstractParserMojo {
                             // restore(javaFile);
                         }
                     }
-                    // Final compile to get state to right place
-                    /* boolean result = MvnCommands.runMvnInstall(mavenProject, false);
-                    System.out.println("MVN OUTPUT: " + result);
-                    restore(javaFile); */
                 }
             }
         } catch (IOException | DependencyResolutionRequiredException exception) {
@@ -449,13 +312,315 @@ public class ParserMojo extends AbstractParserMojo {
         }
     }
 
-    protected Set<String> getUpperLevelClasses(ClassOrInterfaceDeclaration ci) {
-        Set<String> set = new HashSet<>();
-        System.out.println(ci.getExtendedTypes());
+    protected void updateJUnitTestFiles(JavaFile javaFile, List<Path> wholeTestFiles) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
+        // JUnit 4
+        if (this.runner.framework().getDelimiter().equals(".")) {
+            Set<String> methsSet = new HashSet<>();
+            Set<String> fldsSet = new HashSet<>();
+            updateJUnit4TestFiles(javaFile, wholeTestFiles, true, methsSet, fldsSet);
+            // System.exit(0);
+        }
+        // JUnit 5
+        if (this.runner.framework().getDelimiter().equals("#")) {
+            updateJUnit5TestFiles(javaFile, wholeTestFiles);
+        }
+        javaFile.writeAndReloadCompilationUnit();
+    }
+
+    protected void addClassAnnotations(JavaFile javaFile, Set<String> fieldsSet, Set<String> methodsSet, String beforeAnnotation, String afterAnnotation) throws DependencyResolutionRequiredException, ClassNotFoundException {
+        // method
+        MethodDeclaration method = javaFile.findMethodWithAnnotations(beforeAnnotation);
+        if (method != null) {
+            method.setStatic(true);
+            NodeList<AnnotationExpr> methodAnnotations = method.getAnnotations();
+            int i = 0;
+            for (i = 0; i < methodAnnotations.size(); i++) {
+                AnnotationExpr beforeMethodAnnotation = methodAnnotations.get(i);
+                if (beforeMethodAnnotation.getName().toString().equals(beforeAnnotation)) {
+                    Class clazz = projectClassLoader().loadClass(afterAnnotation);
+                    method.tryAddImportToParentCompilationUnit(clazz);
+                    MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
+                    method.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
+                    break;
+                }
+            }
+            System.out.println(method);
+            fieldsSet.addAll(getRelatedFields(method, javaFile));
+            methodsSet.addAll(getRelatedMethods(method));
+        }
+    }
+
+    protected void updateJUnit4TestFiles(JavaFile javaFile, List<Path> wholeTestFiles, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
+        // rule field
+        FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("");
+        if (ruleField != null) {
+            ruleField.setStatic(true);
+            NodeList<AnnotationExpr> ruleFieldAnnotations = ruleField.getAnnotations();
+            int i = 0;
+            for (i = 0; i < ruleFieldAnnotations.size(); i++) {
+                AnnotationExpr ruleFieldAnnotation = ruleFieldAnnotations.get(i);
+                if (ruleFieldAnnotation.getName().toString().equals("Rule")) {
+                    Class clazz = projectClassLoader().loadClass("org.junit.ClassRule");
+                    ruleField.tryAddImportToParentCompilationUnit(clazz);
+                    MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
+                    ruleField.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
+                    break;
+                }
+            }
+        }
+        /* Set<String> methodsSet = new HashSet<>();
+        methodsSet.addAll(methsSet);
+        Set<String> fieldsSet = new HashSet<>();
+        fieldsSet.addAll(fldsSet); */
+        // Before method
+        addClassAnnotations(javaFile, fieldsSet, methodsSet, "Before", "org.junit.BeforeClass");
+        // After Method
+        addClassAnnotations(javaFile, fieldsSet, methodsSet, "After", "org.junit.AfterClass");
+
+        /* Set<String> remainingMethodsSet = new HashSet<>();
+        for (String methodName : methodsSet) {
+            String packageName = javaFile.compilationUnit().getPackageDeclaration().get().getNameAsString();
+            String className = javaFile.getCurCI().getNameAsString();
+            System.out.println(packageName);
+            MethodDeclaration method = javaFile.findMethodDeclaration(packageName + "." + className + "." + methodName);
+            if (method != null) {
+                method.setStatic(true);
+                fieldsSet.addAll(getRelatedFields(method));
+                remainingMethodsSet.addAll(getRelatedMethods(method));
+            } else {
+                remainingMethodsSet.add(methodName);
+            }
+        } */
+
+        if (!lowLevel) return;
+        List<JavaFile> javaFileList = new LinkedList<>();
+        JavaFile curFile = javaFile;
+        javaFileList.add(curFile);
+        while (curFile.hasExtendedJavaFile()) {
+            JavaFile parentFile = curFile.getExtendedJavaFile();
+
+            // previous file information
+            JavaFile backupFile = curFile;
+
+            // obtain the extend relationship
+            getUpperLevelClasses(parentFile, wholeTestFiles);
+
+            String backupName = backupFile.path().getFileName().toString();
+            String backupShortName = backupName.substring(0, backupName.lastIndexOf("."));
+
+            int i = 0;
+            if (backupFile.hasExtendedJavaFile()) {
+                String futureName = backupFile.getExtendedJavaFile().path().getFileName().toString();
+                String futureShortName = futureName.substring(0, futureName.lastIndexOf("."));
+
+                for (ClassOrInterfaceType ct : backupFile.getCurCI().getExtendedTypes()) {
+                    if (ct.getName().asString().equals(futureShortName)) {
+                        String potentialName = futureShortName + "New" + curFile.getExtendedJavaFile().getCurIndex();
+                        backupFile.getCurCI().getExtendedTypes(i).setName(potentialName);
+                        List<ClassOrInterfaceDeclaration> classList = backupFile.compilationUnit().findAll(ClassOrInterfaceDeclaration.class);
+                        for (ClassOrInterfaceDeclaration clazz : classList) {
+                            if (clazz.getNameAsString().equals(backupShortName)) {
+                                clazz.getExtendedTypes(i).setName(potentialName);
+                            }
+                        }
+                        backupFile.writeAndReloadCompilationUnit();
+                    }
+                    i++;
+                }
+            }
+            // System.out.println("Set0: " + backupFile.path());
+            // System.out.println("Set1: " + backupFile.getCurCI().getExtendedTypes());
+            int curIndex = parentFile.getCurIndex();
+            Path path1 = ParserPathManager.backupPath1(parentFile.path(), "New" + curIndex + ".java");
+            String fileName = parentFile.path().getFileName().toString();
+            String fileShortName = fileName.substring(0, fileName.lastIndexOf("."));
+            backup1(parentFile, "New" + curIndex + ".java");
+
+            curFile = JavaFile.loadFile(path1, classpath(), ParserPathManager.compiledPath(path1).getParent(), fileShortName, "New" + curIndex);
+            parentFile.setCurIndex(curIndex + 1);
+            backupFile.setExtendedJavaFile(curFile);
+            curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
+            curFile.writeAndReloadCompilationUnit();
+            updateJUnit4TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
+            // System.out.println(backupFile.getCurCI().getExtendedTypes());
+            /* Set<String> remainingMethodsSetBackup = new HashSet<>();
+            remainingMethodsSetBackup.addAll(remainingMethodsSet);
+            for (String methodName : remainingMethodsSet) {
+                String packageName = curFile.compilationUnit().getPackageDeclaration().get().getNameAsString();
+                String className = curFile.getCurCI().getNameAsString();
+                MethodDeclaration method = curFile.findMethodDeclaration(packageName + "." + className + "." + methodName);
+                if (method != null) {
+                    method.setStatic(true);
+                    fieldsSet.addAll(getRelatedFields(method));
+                }
+                curFile.writeAndReloadCompilationUnit();
+            } */
+            // System.out.println("CURFILE: " + curFile.path());
+            javaFileList.add(curFile);
+        }
+        updateMethods(javaFile, methodsSet, fieldsSet, wholeTestFiles);
+        /* for (String fieldName : fieldsSet) {
+            System.out.println("fieldName: " + fieldName);
+            for (JavaFile javaFile1 : javaFileList) {
+                FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
+                if (field != null) {
+                    field.setStatic(true);
+                }
+                javaFile1.writeAndReloadCompilationUnit();
+            }
+        } */
+        // System.exit(0);
+        // System.exit(0);
+    }
+
+    protected void updateJUnit5TestFiles(JavaFile javaFile, List<Path> wholeTestFiles) throws DependencyResolutionRequiredException, ClassNotFoundException {
+        // BeforeEach method
+        MethodDeclaration beforeEachMethod = javaFile.findMethodWithAnnotations("BeforeEach");
+        if (beforeEachMethod != null) {
+            beforeEachMethod.setStatic(true);
+            NodeList<AnnotationExpr> beforeEachMethodAnnotations = beforeEachMethod.getAnnotations();
+            int i = 0;
+            for (i = 0; i < beforeEachMethodAnnotations.size(); i++) {
+                AnnotationExpr beforeEachMethodAnnotation = beforeEachMethodAnnotations.get(i);
+                if (beforeEachMethodAnnotation.getName().toString().equals("BeforeEach")) {
+                    Class clazz = projectClassLoader().loadClass("org.junit.jupiter.api.BeforeAll");
+                    beforeEachMethod.tryAddImportToParentCompilationUnit(clazz);
+                    MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
+                    beforeEachMethod.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
+                    break;
+                }
+            }
+            Set<String> set = getRelatedFields(beforeEachMethod, javaFile);
+            System.out.println(beforeEachMethod);
+            for (String fieldName : set) {
+                // System.out.println("field: " + fieldName);
+                FieldDeclaration field = javaFile.findFieldDeclaration(fieldName);
+                if (field != null) {
+                    field.setStatic(true);
+                }
+            }
+        }
+        // AfterEach Method
+        MethodDeclaration afterEachMethod = javaFile.findMethodWithAnnotations("AfterEach");
+        if (afterEachMethod != null) {
+            afterEachMethod.setStatic(true);
+            NodeList<AnnotationExpr> afterEachMethodAnnotations = afterEachMethod.getAnnotations();
+            int i = 0;
+            for (i = 0; i < afterEachMethodAnnotations.size(); i++) {
+                AnnotationExpr afterEachMethodAnnotation = afterEachMethodAnnotations.get(i);
+                if (afterEachMethodAnnotation.getName().toString().equals("AfterEach")) {
+                    Class clazz = projectClassLoader().loadClass("org.junit.jupiter.api.AfterAll");
+                    afterEachMethod.tryAddImportToParentCompilationUnit(clazz);
+                    MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
+                    afterEachMethod.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
+                    break;
+                }
+            }
+            System.out.println(afterEachMethod);
+            Set<String> set = getRelatedFields(afterEachMethod, javaFile);
+            for (String fieldName : set) {
+                FieldDeclaration field = javaFile.findFieldDeclaration(fieldName);
+                if (field != null) {
+                    field.setStatic(true);
+                }
+            }
+        }
+    }
+
+    protected void updateMethods(JavaFile javaFile, Set<String> methodsSet, Set<String> fieldsSet, List<Path> wholeTestFiles) throws IOException, DependencyResolutionRequiredException {
+        Set<String> remainingMethodsSet = new CopyOnWriteArraySet<>();
+        remainingMethodsSet.addAll(methodsSet);
+        /* for (String methodName : methodsSet) {
+            String packageName = javaFile.compilationUnit().getPackageDeclaration().get().getNameAsString();
+            String className = javaFile.getCurCI().getNameAsString();
+            MethodDeclaration method = javaFile.findMethodDeclaration(packageName + "." + className + "." + methodName);
+            if (method != null) {
+                method.setStatic(true);
+                fieldsSet.addAll(getRelatedFields(method));
+                remainingMethodsSet.addAll(getRelatedMethods(method));
+            } else {
+                remainingMethodsSet.add(methodName);
+            }
+        } */
+        List<JavaFile> javaFileList = new LinkedList<>();
+        JavaFile curFile = javaFile;
+        javaFileList.add(curFile);
+        while (curFile.hasExtendedJavaFile()) {
+            // System.out.println("DEPS0: " + curFile.path());
+            // System.out.println("DEPS1: " + curFile.getCurCI().getExtendedTypes());
+            getUpperLevelClasses(curFile, wholeTestFiles);
+            JavaFile parentFile = curFile.getExtendedJavaFile();
+            curFile = parentFile;
+            javaFileList.add(curFile);
+            // System.out.println("DEPS2: " + curFile.path());
+        }
+        Set<String> processedMethods = new HashSet<>();
+        while (true) {
+            int preSize = remainingMethodsSet.size();
+            for (String methodName : remainingMethodsSet) {
+                if (processedMethods.contains(methodName)) {
+                    continue;
+                }
+                for (JavaFile javaFile1 : javaFileList) {
+                    String packageName = javaFile1.compilationUnit().getPackageDeclaration().get().getNameAsString();
+                    String className = javaFile1.getCurCI().getNameAsString();
+                    List<MethodDeclaration> methodsList = javaFile1.findMethodDeclarations(packageName + "." + className + "." + methodName);
+                    if (methodsList.size() > 0) {
+                        System.out.println("REMOVE: " + methodName);
+                        Set<String> additionalMethods = new HashSet<>();
+                        for (MethodDeclaration md : methodsList) {
+                            md.setStatic(true);
+                            additionalMethods.addAll(getRelatedMethods(md));
+                            fieldsSet.addAll(getRelatedFields(md, javaFile1));
+                        }
+                        remainingMethodsSet.addAll(additionalMethods);
+                        remainingMethodsSet.remove(methodName);
+                        processedMethods.add(methodName);
+                    }
+                }
+            }
+            int curSize = remainingMethodsSet.size();
+            if (preSize == curSize) {
+                break;
+            }
+        }
+        for (String fieldName : fieldsSet) {
+            // System.out.println("fieldName: " + fieldName);
+            for (JavaFile javaFile1 : javaFileList) {
+                FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
+                if (field != null) {
+                    field.setStatic(true);
+                    // fieldsSet.remove(field);
+                }
+            }
+        }
+        for (JavaFile javaFile1 : javaFileList) {
+            javaFile1.writeAndReloadCompilationUnit();
+        }
+        // updateMethods(javaFile, remainingMethodsSet, wholeTestFiles);
+    }
+
+    protected Set<String> getUpperLevelClasses(JavaFile javaFile, List<Path> wholeTestFiles) throws DependencyResolutionRequiredException, IOException {
+        ClassOrInterfaceDeclaration ci = javaFile.getCurCI();
+        String currentLevelClassName = ci.getNameAsString();
+        // System.out.println("???" + currentLevelClassName);
+        Set<String> set = new HashSet<String>();
+        // System.out.println(ci.getExtendedTypes());
         for (ClassOrInterfaceType type : ci.getExtendedTypes()) {
             set.add(type.getNameAsString());
+            for (final Path anotherFile : wholeTestFiles) {
+                if (Files.exists(anotherFile) && FilenameUtils.isExtension(anotherFile.getFileName().toString(), "java")) {
+                    if (anotherFile.getFileName().toString().equals(type.getNameAsString() + ".java")) {
+                        // System.out.println(anotherFile.getFileName().toString());
+                        String newFileName = anotherFile.getFileName().toString();
+                        String newFileShortName = newFileName.substring(0, newFileName.lastIndexOf("."));
+                        JavaFile newJavaFile = JavaFile.loadFile(anotherFile, classpath(), ParserPathManager.compiledPath(anotherFile).getParent(), newFileShortName, "");
+                        javaFile.setExtendedJavaFile(newJavaFile);
+                        break;
+                    }
+                }
+            }
         }
-        // set.add(ci.getExtendedTypes().);
         return set;
     }
 
@@ -472,15 +637,19 @@ public class ParserMojo extends AbstractParserMojo {
         }
     }
 
-    protected Set<String> getRelatedFields(MethodDeclaration md) {
+    protected Set<String> getRelatedFields(MethodDeclaration md, JavaFile javaFile) {
         Map<String, Range> variableNameMap = new HashMap<>();
         Set<String> set = new HashSet<>();
         Map<VariableDeclarator, Range> localMap = new HashMap<>();
+        // System.out.println(md.getParentNode().get().getParentNode().get().getClass().getName());
+        List<Node> nodesList = new LinkedList<>();
         for (Statement stmt : md.getBody().get().getStatements()) {
             Queue<Node> nodes = new ArrayDeque<>();
             nodes.add(stmt);
+            // nodesList.add(stmt);
             while(!nodes.isEmpty()) {
                 Node node = nodes.peek();
+                System.out.println("NODE: " + node + " " + node.getClass());
                 if (node instanceof VariableDeclarationExpr) {
                     NodeList<VariableDeclarator> variableDeclarators = ((VariableDeclarationExpr) node).asVariableDeclarationExpr().getVariables();
                     for (VariableDeclarator variableDeclarator: variableDeclarators) {
@@ -500,12 +669,25 @@ public class ParserMojo extends AbstractParserMojo {
                         if (node.getClass().getName().equals("com.github.javaparser.ast.expr.NameExpr")) {
                             String name = ((NameExpr) node).asNameExpr().getNameAsString();
                             variableNameMap.put(name, potentialNode.getRange().get());
+                            // System.out.println("NEWNODE: " + name + " " + node + " " + node.getClass());
+                        }
+                    }
+                }
+                if (node instanceof FieldAccessExpr) {
+                    for (Node ni : node.getChildNodes()) {
+                        if (ni.getClass().getName().equals("com.github.javaparser.ast.expr.SimpleName")) {
+                            Node potentialNode = ni;
+                            String name = ((SimpleName) potentialNode).asString();
+                            variableNameMap.put(name, potentialNode.getRange().get());
+                            System.out.println("NEWNODE: " + name + " " + potentialNode + " " + potentialNode.getClass());
+
                         }
                     }
                 }
                 nodes.poll();
                 for (Node node1 : node.getChildNodes()) {
                     nodes.add(node1);
+                    nodesList.add(node1);
                 }
             }
             for (String variableName : variableNameMap.keySet()) {
@@ -522,10 +704,39 @@ public class ParserMojo extends AbstractParserMojo {
                 }
                 if (contain == false) {
                     set.add(variableName);
+                    System.out.println("put: " + variableName);
+                }
+            }
+            for (Node node : nodesList) {
+                // System.out.println(node);
+                if (node instanceof ThisExpr) {
+                    if (node.getParentNode().isPresent()) {
+                        Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
+                        parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+                    }
                 }
             }
         }
 
+        return set;
+    }
+
+    protected Set<String> getRelatedMethods(MethodDeclaration md) {
+        Set<String> set = new HashSet<>();
+        for (Statement stmt : md.getBody().get().getStatements()) {
+            Queue<Node> nodes = new ArrayDeque<>();
+            nodes.add(stmt);
+            while(!nodes.isEmpty()) {
+                Node node = nodes.peek();
+                if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
+                    set.add(((MethodCallExpr) node).asMethodCallExpr().getName().asString());
+                }
+                nodes.poll();
+                for (Node node1 : node.getChildNodes()) {
+                    nodes.add(node1);
+                }
+            }
+        }
         return set;
     }
 
