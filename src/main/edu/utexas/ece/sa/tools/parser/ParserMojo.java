@@ -66,7 +66,7 @@ public class ParserMojo extends AbstractParserMojo {
     private static Map<Integer, List<String>> locateTestList = new HashMap<>();
     private Runner runner;
 
-    private final String testname = Configuration.config().getProperty("parser.testname", "");
+    private String testname;
 
     private String classpath() throws DependencyResolutionRequiredException {
         final List<String> elements = new ArrayList<>(mavenProject.getCompileClasspathElements());
@@ -163,6 +163,7 @@ public class ParserMojo extends AbstractParserMojo {
         superExecute();
 
         try {
+            testname = Configuration.config().getProperty("parser.testname", "");
             if (!Files.exists(ParserPathManager.cachePath())) {
                 Files.createDirectories(ParserPathManager.cachePath());
             }
@@ -197,7 +198,7 @@ public class ParserMojo extends AbstractParserMojo {
                         Set<FieldDeclaration> globalFields = new HashSet<>();
                         String fileName = file.getFileName().toString();
                         String fileShortName = fileName.substring(0, fileName.lastIndexOf("."));
-                        if (testClass.endsWith(fileShortName)) {
+                        if (testClass.endsWith("." + fileShortName)) {
                             final JavaFile javaFile = JavaFile.loadFile(file, classpath(), ParserPathManager.compiledPath(file).getParent(), fileShortName, "");
                             backup(javaFile);
                             Map<Integer, Set<String>> upperLevelClassNames = new HashMap<>();
@@ -481,9 +482,9 @@ public class ParserMojo extends AbstractParserMojo {
 
     protected void updateJUnit5TestFiles(JavaFile javaFile, List<Path> wholeTestFiles, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
         // BeforeEach method
-        addClassAnnotations(javaFile, fieldsSet, methodsSet, "BeforeEach", "org.junit.BeforeAll");
+        addClassAnnotations(javaFile, fieldsSet, methodsSet, "BeforeEach", "org.junit.jupiter.api.BeforeAll");
         // AfterEach Method
-        addClassAnnotations(javaFile, fieldsSet, methodsSet, "AfterEach", "org.junit.AfterAll");
+        addClassAnnotations(javaFile, fieldsSet, methodsSet, "AfterEach", "org.junit.jupiter.api.AfterAll");
 
         if (!lowLevel) return;
         List<JavaFile> javaFileList = new LinkedList<>();
@@ -569,7 +570,7 @@ public class ParserMojo extends AbstractParserMojo {
                     String className = javaFile1.getCurCI().getNameAsString();
                     List<MethodDeclaration> methodsList = javaFile1.findMethodDeclarations(packageName + "." + className + "." + methodName);
                     if (methodsList.size() > 0) {
-                        System.out.println("REMOVE: " + methodName);
+                        // System.out.println("REMOVE: " + methodName);
                         Set<String> additionalMethods = new HashSet<>();
                         for (MethodDeclaration md : methodsList) {
                             md.setStatic(true);
@@ -651,7 +652,7 @@ public class ParserMojo extends AbstractParserMojo {
             // nodesList.add(stmt);
             while(!nodes.isEmpty()) {
                 Node node = nodes.peek();
-                System.out.println("NODE: " + node + " " + node.getClass());
+                // System.out.println("NODE: " + node + " " + node.getClass());
                 if (node instanceof VariableDeclarationExpr) {
                     NodeList<VariableDeclarator> variableDeclarators = ((VariableDeclarationExpr) node).asVariableDeclarationExpr().getVariables();
                     for (VariableDeclarator variableDeclarator: variableDeclarators) {
@@ -681,7 +682,7 @@ public class ParserMojo extends AbstractParserMojo {
                             Node potentialNode = ni;
                             String name = ((SimpleName) potentialNode).asString();
                             variableNameMap.put(name, potentialNode.getRange().get());
-                            System.out.println("NEWNODE: " + name + " " + potentialNode + " " + potentialNode.getClass());
+                            // System.out.println("NEWNODE: " + name + " " + potentialNode + " " + potentialNode.getClass());
 
                         }
                     }
@@ -706,7 +707,7 @@ public class ParserMojo extends AbstractParserMojo {
                 }
                 if (contain == false) {
                     set.add(variableName);
-                    System.out.println("put: " + variableName);
+                    // System.out.println("put: " + variableName);
                 }
             }
             for (Node node : nodesList) {
