@@ -62,6 +62,16 @@ public class MavenDetectorPathManager extends PathManager {
 	return originalOrderPathObj;
     }
 
+    @Override
+    protected Path selectedTestPathInstance() {
+        return null;
+    }
+
+    @Override
+    protected Path timePathInstance() {
+        return null;
+    }
+
 
     @Override
     public Path errorPathInstance() {
@@ -98,6 +108,16 @@ public class MavenDetectorPathManager extends PathManager {
             }
             return outputPathObj.resolve(modulePath().getFileName());
         }
+    }
+
+    @Override
+    protected Path startsPathInstance() {
+        return null;
+    }
+
+    @Override
+    protected Path ekstaziPathInstance() {
+        return null;
     }
 
     @Override

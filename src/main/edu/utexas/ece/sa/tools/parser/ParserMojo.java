@@ -25,6 +25,8 @@ import edu.illinois.cs.testrunner.data.results.TestRunResult;
 import edu.illinois.cs.testrunner.runner.Runner;
 import edu.illinois.cs.testrunner.runner.RunnerFactory;
 import edu.utexas.ece.sa.tools.mavenplugin.AbstractParserMojo;
+import edu.illinois.cs.dt.tools.utility.Logger;
+import edu.illinois.cs.dt.tools.utility.Level;
 
 import edu.illinois.cs.testrunner.testobjects.TestLocator;
 // import edu.utexas.ece.sa.tools.testobjects.TestLocator;
@@ -55,8 +57,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+//import java.util.logging.Level;
+//import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 @Mojo(name = "parse", defaultPhase = LifecyclePhase.TEST, requiresDependencyResolution = ResolutionScope.TEST)
@@ -248,13 +250,17 @@ public class ParserMojo extends AbstractParserMojo {
                             System.out.println("MVN OUTPUT: " + result);
                             List<String> testsForNewClass = new LinkedList<>();
                             for (String testForNewClass : tests) {
-                                String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf("."));
+                                String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf(this.runner.framework().getDelimiter()));
+                                System.out.println("testClassForNewClass: " +  testClassForNewClass);
                                 if (testClassForNewClass.equals(testClass)) {
                                     testsForNewClass.add(testForNewClass);
                                 }
+                                System.out.println("testClass: " +  testClass);
                             }
                             Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
+
                             Map<String, TestResult> map = testRunResultTry.get().results();
+                            System.out.println(map);
                             Set<String> failedTests = new HashSet<>();
                             Set<String> backupedFailedTests = new HashSet<>();
                             obtainLastestTestResults(map, failedTests);
@@ -333,6 +339,8 @@ public class ParserMojo extends AbstractParserMojo {
         }
         javaFile.writeAndReloadCompilationUnit();
     }
+
+
 
     protected void addClassAnnotations(JavaFile javaFile, Set<String> fieldsSet, Set<String> methodsSet, String beforeAnnotation, String afterAnnotation) throws DependencyResolutionRequiredException, ClassNotFoundException {
         // method
