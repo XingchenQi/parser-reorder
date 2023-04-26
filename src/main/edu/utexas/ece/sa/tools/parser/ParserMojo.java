@@ -344,24 +344,26 @@ public class ParserMojo extends AbstractParserMojo {
 
     protected void addClassAnnotations(JavaFile javaFile, Set<String> fieldsSet, Set<String> methodsSet, String beforeAnnotation, String afterAnnotation) throws DependencyResolutionRequiredException, ClassNotFoundException {
         // method
-        MethodDeclaration method = javaFile.findMethodWithAnnotations(beforeAnnotation);
-        if (method != null) {
-            method.setStatic(true);
-            NodeList<AnnotationExpr> methodAnnotations = method.getAnnotations();
-            int i = 0;
-            for (i = 0; i < methodAnnotations.size(); i++) {
-                AnnotationExpr beforeMethodAnnotation = methodAnnotations.get(i);
-                if (beforeMethodAnnotation.getName().toString().equals(beforeAnnotation)) {
-                    Class clazz = projectClassLoader().loadClass(afterAnnotation);
-                    method.tryAddImportToParentCompilationUnit(clazz);
-                    MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                    method.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
-                    break;
+        List<MethodDeclaration> methods = javaFile.findMethodWithAnnotations(beforeAnnotation);
+        for (MethodDeclaration method : methods) {
+            if (method != null) {
+                method.setStatic(true);
+                NodeList<AnnotationExpr> methodAnnotations = method.getAnnotations();
+                int i = 0;
+                for (i = 0; i < methodAnnotations.size(); i++) {
+                    AnnotationExpr beforeMethodAnnotation = methodAnnotations.get(i);
+                    if (beforeMethodAnnotation.getName().toString().equals(beforeAnnotation)) {
+                        Class clazz = projectClassLoader().loadClass(afterAnnotation);
+                        method.tryAddImportToParentCompilationUnit(clazz);
+                        MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
+                        method.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
+                        break;
+                    }
                 }
+                System.out.println(method);
+                fieldsSet.addAll(getRelatedFields(method, javaFile));
+                methodsSet.addAll(getRelatedMethods(method));
             }
-            System.out.println(method);
-            fieldsSet.addAll(getRelatedFields(method, javaFile));
-            methodsSet.addAll(getRelatedMethods(method));
         }
     }
 

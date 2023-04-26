@@ -188,19 +188,20 @@ public class JavaFile {
         return null;
     }
 
-    public MethodDeclaration findMethodWithAnnotations(String annotationName) {
+    public List<MethodDeclaration> findMethodWithAnnotations(String annotationName) {
+        List<MethodDeclaration> mdList = new ArrayList<>();
         for (final ClassOrInterfaceDeclaration classDeclaration : classList) {
             for (final BodyDeclaration bodyDeclaration : classDeclaration.getMembers()) {
                 if (bodyDeclaration instanceof MethodDeclaration) {
                     final MethodDeclaration method = (MethodDeclaration) bodyDeclaration;
                     // System.out.println(method.getAnnotationByName(annotationName));
                     if (method.getAnnotationByName(annotationName).isPresent()) {
-                        return method;
+                        mdList.add(method);
                     }
                 }
             }
         }
-        return null;
+        return mdList;
     }
 
     public MethodDeclaration findMethodDeclaration(final String name) {
