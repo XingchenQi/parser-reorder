@@ -251,11 +251,11 @@ public class ParserMojo extends AbstractParserMojo {
                             List<String> testsForNewClass = new LinkedList<>();
                             for (String testForNewClass : tests) {
                                 String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf(this.runner.framework().getDelimiter()));
-                                System.out.println("testClassForNewClass: " +  testClassForNewClass);
+                                // System.out.println("testClassForNewClass: " +  testClassForNewClass);
                                 if (testClassForNewClass.equals(testClass)) {
                                     testsForNewClass.add(testForNewClass);
                                 }
-                                System.out.println("testClass: " +  testClass);
+                                // System.out.println("testClass: " +  testClass);
                             }
                             Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
 
