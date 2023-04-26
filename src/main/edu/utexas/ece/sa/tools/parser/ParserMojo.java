@@ -369,7 +369,7 @@ public class ParserMojo extends AbstractParserMojo {
 
     protected void updateJUnit4TestFiles(JavaFile javaFile, List<Path> wholeTestFiles, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
         // rule field
-        FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("");
+        FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("Rule");
         if (ruleField != null) {
             ruleField.setStatic(true);
             NodeList<AnnotationExpr> ruleFieldAnnotations = ruleField.getAnnotations();
@@ -492,7 +492,7 @@ public class ParserMojo extends AbstractParserMojo {
 
     protected void updateJUnit5TestFiles(JavaFile javaFile, List<Path> wholeTestFiles, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
         // rule field
-        FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("");
+        FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("Rule");
         if (ruleField != null) {
             ruleField.setStatic(true);
             NodeList<AnnotationExpr> ruleFieldAnnotations = ruleField.getAnnotations();
@@ -508,7 +508,7 @@ public class ParserMojo extends AbstractParserMojo {
                 }
             }
         }
-        
+
         // BeforeEach method
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "BeforeEach", "org.junit.jupiter.api.BeforeAll");
         // AfterEach Method
