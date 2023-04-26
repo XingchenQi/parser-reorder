@@ -491,6 +491,24 @@ public class ParserMojo extends AbstractParserMojo {
     }
 
     protected void updateJUnit5TestFiles(JavaFile javaFile, List<Path> wholeTestFiles, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
+        // rule field
+        FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("");
+        if (ruleField != null) {
+            ruleField.setStatic(true);
+            NodeList<AnnotationExpr> ruleFieldAnnotations = ruleField.getAnnotations();
+            int i = 0;
+            for (i = 0; i < ruleFieldAnnotations.size(); i++) {
+                AnnotationExpr ruleFieldAnnotation = ruleFieldAnnotations.get(i);
+                if (ruleFieldAnnotation.getName().toString().equals("Rule")) {
+                    Class clazz = projectClassLoader().loadClass("org.junit.ClassRule");
+                    ruleField.tryAddImportToParentCompilationUnit(clazz);
+                    MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
+                    ruleField.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
+                    break;
+                }
+            }
+        }
+        
         // BeforeEach method
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "BeforeEach", "org.junit.jupiter.api.BeforeAll");
         // AfterEach Method
