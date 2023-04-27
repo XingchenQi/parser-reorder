@@ -38,18 +38,18 @@ public class JavaFile {
         return Math.toIntExact(diagnostics.getDiagnostics().stream().filter(diag -> diag.getKind().equals(kind)).count());
     }
 
-    private static String simpleName;
-    private static String extensions;
-    private static CompilationUnit compilationUnit;
-    private static List<ClassOrInterfaceDeclaration> classList = new ArrayList<>();
-    private static Map<ClassOrInterfaceDeclaration, List<MethodDeclaration>> classToMethods = new HashMap<>();
-    private static Map<ClassOrInterfaceDeclaration, List<MethodDeclaration>> classToTestMethods = new HashMap<>();
-    private static Path path = null;
-    private static String classPath = null;
-    private static Path compiledOutputDir = null;
-    private static JavaFile extendedJavaFile = null;
-    private static ClassOrInterfaceDeclaration curCI = null;
-    private static int curIndex = 0;
+    private String simpleName;
+    private String extensions;
+    private CompilationUnit compilationUnit;
+    private List<ClassOrInterfaceDeclaration> classList = new ArrayList<>();
+    private Map<ClassOrInterfaceDeclaration, List<MethodDeclaration>> classToMethods = new HashMap<>();
+    private Map<ClassOrInterfaceDeclaration, List<MethodDeclaration>> classToTestMethods = new HashMap<>();
+    private final Path path;
+    private final String classPath;
+    private final Path compiledOutputDir;
+    private JavaFile extendedJavaFile = null;
+    private ClassOrInterfaceDeclaration curCI = null;
+    private int curIndex = 0;
 
     private JavaFile(final Path path, final String classPath, final Path compiledOutputDir) {
         this.path = path;
