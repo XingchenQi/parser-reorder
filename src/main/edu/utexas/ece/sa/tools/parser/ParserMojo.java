@@ -96,13 +96,13 @@ public class ParserMojo extends AbstractParserMojo {
         return URLClassLoader.newInstance(urls);
     }
 
-    private static List<String> locateTests(MavenProject project, TestFramework testFramework) {
+    private List<String> locateTests(MavenProject project, TestFramework testFramework) {
         int id = Objects.hash(project, testFramework);
         if (!locateTestList.containsKey(id)) {
             Logger.getGlobal().log(Level.INFO, "Locating tests...");
             try {
                 locateTestList.put(id, OperationTime.runOperation(() -> {
-                    return new ArrayList<String>(JavaConverters.bufferAsJavaList(TestLocator.tests(mavenProject, testFramework).toBuffer()));
+                    return new ArrayList<String>(JavaConverters.bufferAsJavaList(TestLocator.tests(this.mavenProject, testFramework).toBuffer()));
                 }, (tests, time) -> {
                     Logger.getGlobal().log(Level.INFO, "Located " + tests.size() + " tests. Time taken: " + time.elapsedSeconds() + " seconds");
                     return tests;
@@ -168,7 +168,7 @@ public class ParserMojo extends AbstractParserMojo {
         }
     }
 
-    private static List<Runner> removeZombieRunners(
+    private List<Runner> removeZombieRunners(
             List<Runner> runners, MavenProject project) throws IOException {
         // Some projects may include test frameworks without corresponding tests.
         // Filter out such zombie test frameworks (runners).
