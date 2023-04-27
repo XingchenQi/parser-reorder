@@ -714,19 +714,26 @@ public class ParserMojo extends AbstractParserMojo {
         // System.out.println(ci.getExtendedTypes());
         for (ClassOrInterfaceType type : ci.getExtendedTypes()) {
             set.add(type.getNameAsString());
+	    System.out.println(type.getNameAsString());
             for (final Path anotherFile : wholeTestFiles) {
-                if (Files.exists(anotherFile) && FilenameUtils.isExtension(anotherFile.getFileName().toString(), "java")) {
+		// System.out.println(type.getNameAsString());
+                // System.out.println("anotherFile: " + anotherFile);
+		if (Files.exists(anotherFile) && FilenameUtils.isExtension(anotherFile.getFileName().toString(), "java")) {
                     if (anotherFile.getFileName().toString().equals(type.getNameAsString() + ".java")) {
                         // System.out.println(anotherFile.getFileName().toString());
                         String newFileName = anotherFile.getFileName().toString();
                         String newFileShortName = newFileName.substring(0, newFileName.lastIndexOf("."));
                         JavaFile newJavaFile = JavaFile.loadFile(anotherFile, classpath(), ParserPathManager.compiledPath(anotherFile).getParent(), newFileShortName, "");
                         javaFile.setExtendedJavaFile(newJavaFile);
-                        break;
+                        System.out.println(javaFile);
+			System.out.println(javaFile.getExtendedJavaFile());
+			break;
                     }
                 }
             }
         }
+	// System.out.println(javaFile);
+        // System.out.println(javaFile.getExtendedJavaFile());
         return set;
     }
 
@@ -887,19 +894,35 @@ public class ParserMojo extends AbstractParserMojo {
     private List<Path> wholeTestSources() throws IOException {
         final List<Path> testFiles = new ArrayList<>();
         MavenProject upperProject = mavenProject;
-        while (upperProject.hasParent()) {
+        System.out.println(upperProject.getBasedir() + "/src/test/java");
+	while (upperProject.hasParent()) {
+	    if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
+	        break;
+	    }
+	    // System.out.println(upperProject.getParent().getBasedir());
             upperProject = upperProject.getParent();
         }
         // System.out.println(upperProject.getBuild().getSourceDirectory());
-        for (String moduleName : upperProject.getModules()) {
-            String append = File.separator + moduleName;
-            try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + append + "/src/test/java"))) {
+        System.out.println(upperProject.getBasedir() + "/src/test/java");
+	if (upperProject.getModules().size() > 0) {
+	    for (String moduleName : upperProject.getModules()) {
+                String append = File.separator + moduleName;
+	        System.out.println(upperProject.getBasedir() + append + "/src/test/java");
+                try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + append + "/src/test/java"))) {
+                    paths.filter(Files::isRegularFile)
+                            .forEach(testFiles::add);
+                } catch (Exception ex) {
+                    // ex.printStackTrace();
+                }
+            }
+	} else {
+	    try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + "/src/test/java"))) {
                 paths.filter(Files::isRegularFile)
                         .forEach(testFiles::add);
             } catch (Exception ex) {
-                // ex.printStackTrace();
+		// ex.printStackTrace(); 
             }
-        }
+	}
         /* try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBuild().getTestSourceDirectory()))) {
             paths.filter(Files::isRegularFile)
                     .forEach(testFiles::add);
