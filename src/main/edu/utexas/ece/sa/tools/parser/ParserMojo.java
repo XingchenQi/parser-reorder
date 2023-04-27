@@ -18,6 +18,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 import edu.illinois.cs.dt.tools.runner.InstrumentingSmartRunner;
 
+import edu.illinois.cs.dt.tools.utility.ErrorLogger;
 import edu.illinois.cs.testrunner.configuration.Configuration;
 import edu.illinois.cs.testrunner.data.framework.TestFramework;
 import edu.illinois.cs.testrunner.data.results.TestResult;
@@ -70,6 +71,9 @@ public class ParserMojo extends AbstractParserMojo {
 
     private String testname;
 
+    // useful for modules with JUnit 4 tests but depend on something in JUnit 5
+    private final boolean forceJUnit4 = Configuration.config().getProperty("dt.detector.forceJUnit4", false);
+
     private String classpath() throws DependencyResolutionRequiredException {
         final List<String> elements = new ArrayList<>(mavenProject.getCompileClasspathElements());
         elements.addAll(mavenProject.getRuntimeClasspathElements());
@@ -92,7 +96,7 @@ public class ParserMojo extends AbstractParserMojo {
         return URLClassLoader.newInstance(urls);
     }
 
-    private List<String> locateTests(MavenProject project, TestFramework testFramework) {
+    private static List<String> locateTests(MavenProject project, TestFramework testFramework) {
         int id = Objects.hash(project, testFramework);
         if (!locateTestList.containsKey(id)) {
             Logger.getGlobal().log(Level.INFO, "Locating tests...");
@@ -108,6 +112,75 @@ public class ParserMojo extends AbstractParserMojo {
             }
         }
         return locateTestList.get(id);
+    }
+
+    protected void loadTestRunners(final ErrorLogger logger, final MavenProject mavenProject) throws IOException {
+        // Currently there could two runners, one for JUnit 4 and one for JUnit 5
+        // If the maven project has both JUnit 4 and JUnit 5 tests, two runners will
+        // be returned
+        List<Runner> runners = RunnerFactory.allFrom(mavenProject);
+        runners = removeZombieRunners(runners, mavenProject);
+
+        if (runners.size() != 1) {
+            if (forceJUnit4) {
+                Runner nrunner = null;
+                for (Runner runner : runners) {
+                    if (runner.framework().toString() == "JUnit") {
+                        nrunner = runner;
+                        break;
+                    }
+                }
+                if (nrunner != null) {
+                    runners = new ArrayList<>(Arrays.asList(nrunner));
+                } else {
+                    String errorMsg;
+                    if (runners.size() == 0) {
+                        errorMsg =
+                                "Module is not using a supported test framework (probably not JUnit), " +
+                                        "or there is no test.";
+                    } else {
+                        errorMsg = "dt.detector.forceJUnit4 is true but no JUnit 4 runners found. Perhaps the project only contains JUnit 5 tests.";
+                    }
+                    Logger.getGlobal().log(Level.INFO, errorMsg);
+                    logger.writeError(errorMsg);
+                    return;
+                }
+            } else {
+                String errorMsg;
+                if (runners.size() == 0) {
+                    errorMsg =
+                            "Module is not using a supported test framework (probably not JUnit), " +
+                                    "or there is no test.";
+                } else {
+                    // more than one runner, currently is not supported.
+                    errorMsg =
+                            "This project contains both JUnit 4 and JUnit 5 tests, which currently"
+                                    + " is not supported by iDFlakies";
+                }
+                Logger.getGlobal().log(Level.INFO, errorMsg);
+                logger.writeError(errorMsg);
+                return;
+            }
+        }
+
+        if (this.runner == null) {
+            this.runner = InstrumentingSmartRunner.fromRunner(runners.get(0), mavenProject.getBasedir());
+        }
+    }
+
+    private static List<Runner> removeZombieRunners(
+            List<Runner> runners, MavenProject project) throws IOException {
+        // Some projects may include test frameworks without corresponding tests.
+        // Filter out such zombie test frameworks (runners).
+        // For example, a project have both JUnit 4 and 5 dependencies, but there is
+        // no JUnit 4 tests. In such case, we need to remove the JUnit 4 runner.
+        List<Runner> aliveRunners = new ArrayList<>();
+        for (Runner runner : runners) {
+            if (locateTests(project, runner.framework()).size() > 0) {
+                aliveRunners.add(runner);
+            }
+        }
+        return aliveRunners;
     }
 
     protected List<String> getTests(
@@ -169,10 +242,12 @@ public class ParserMojo extends AbstractParserMojo {
             if (!Files.exists(ParserPathManager.cachePath())) {
                 Files.createDirectories(ParserPathManager.cachePath());
             }
-            final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
-            if (runnerOption.isDefined()) {
-                this.runner = runnerOption.get();
-            }
+            final ErrorLogger logger = new ErrorLogger();
+            loadTestRunners(logger, mavenProject);
+            // final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
+            // if (runnerOption.isDefined()) {
+            // this.runner = lo
+            // }
             final List<String> tests = getTests(mavenProject, this.runner.framework());
             if (!Files.exists(ParserPathManager.originalOrderPath())) {
                 Files.write(ParserPathManager.originalOrderPath(), tests);
