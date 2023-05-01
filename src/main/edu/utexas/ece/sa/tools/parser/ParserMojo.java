@@ -355,13 +355,13 @@ public class ParserMojo extends AbstractParserMojo {
                                 for (String failedTest : failedTests) {
                                     String longFailedTestClassName = testClass + "New" + index;
                                     String shortFailedTestName = failedTest.substring(failedTest.lastIndexOf(".") + 1);
-				    System.out.println(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
+				                    System.out.println(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     MethodDeclaration newMD = javaFile1.addMethod(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     failedTestsList.add(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     // System.out.println(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     // System.out.println(fileShortName + ": " + shortFailedTestName);
                                     System.out.println(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
-				    MethodDeclaration md = javaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
+				                    MethodDeclaration md = javaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     /* System.out.println("1: " + newMD);
                                     System.out.println("2: " + md);
                                     System.out.println("3: " + md.getBody());
@@ -536,6 +536,8 @@ public class ParserMojo extends AbstractParserMojo {
             parentFile.setCurIndex(curIndex + 1);
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
+            Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
+            curFile.compilationUnit().tryAddImportToParentCompilationUnit(clazz);
             curFile.writeAndReloadCompilationUnit();
             updateJUnit4TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
             // System.out.println(backupFile.getCurCI().getExtendedTypes());
@@ -631,6 +633,7 @@ public class ParserMojo extends AbstractParserMojo {
             }
             // System.out.println("Set0: " + backupFile.path());
             // System.out.println("Set1: " + backupFile.getCurCI().getExtendedTypes());
+
             int curIndex = parentFile.getCurIndex();
             Path path1 = ParserPathManager.backupPath1(parentFile.path(), "New" + curIndex + ".java");
             String fileName = parentFile.path().getFileName().toString();
@@ -641,6 +644,8 @@ public class ParserMojo extends AbstractParserMojo {
             parentFile.setCurIndex(curIndex + 1);
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
+            Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
+            curFile.compilationUnit().tryAddImportToParentCompilationUnit(clazz);
             curFile.writeAndReloadCompilationUnit();
             updateJUnit5TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
 
