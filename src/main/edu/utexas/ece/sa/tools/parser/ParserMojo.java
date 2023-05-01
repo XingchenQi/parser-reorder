@@ -101,7 +101,8 @@ public class ParserMojo extends AbstractParserMojo {
         if (!locateTestList.containsKey(id)) {
             Logger.getGlobal().log(Level.INFO, "Locating tests...");
             try {
-                locateTestList.put(id, OperationTime.runOperation(() -> {
+                // System.out.println(TestLocator.testClasses(this.mavenProject));
+		locateTestList.put(id, OperationTime.runOperation(() -> {
                     return new ArrayList<String>(JavaConverters.bufferAsJavaList(TestLocator.tests(this.mavenProject, testFramework).toBuffer()));
                 }, (tests, time) -> {
                     Logger.getGlobal().log(Level.INFO, "Located " + tests.size() + " tests. Time taken: " + time.elapsedSeconds() + " seconds");
@@ -266,10 +267,11 @@ public class ParserMojo extends AbstractParserMojo {
             }
             // read the test class file one by one
             for (String testClass : testClasses) {
-                if (!testClass.equals(testname)) {
+                // System.out.println(testClass);
+		if (!testClass.equals(testname)) {
                     continue;
                 }
-                // System.out.println("TEST CLASS: " + testClass);
+                System.out.println("TEST CLASS: " + testClass);
                 for (final Path file : testFiles) {
                     if (Files.exists(file) && FilenameUtils.isExtension(file.getFileName().toString(), "java")) {
                         Set<FieldDeclaration> globalFields = new HashSet<>();
@@ -353,11 +355,13 @@ public class ParserMojo extends AbstractParserMojo {
                                 for (String failedTest : failedTests) {
                                     String longFailedTestClassName = testClass + "New" + index;
                                     String shortFailedTestName = failedTest.substring(failedTest.lastIndexOf(".") + 1);
+				    System.out.println(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     MethodDeclaration newMD = javaFile1.addMethod(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     failedTestsList.add(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     // System.out.println(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     // System.out.println(fileShortName + ": " + shortFailedTestName);
-                                    MethodDeclaration md = javaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
+                                    System.out.println(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
+				    MethodDeclaration md = javaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     /* System.out.println("1: " + newMD);
                                     System.out.println("2: " + md);
                                     System.out.println("3: " + md.getBody());
@@ -370,7 +374,7 @@ public class ParserMojo extends AbstractParserMojo {
                                 result = MvnCommands.runMvnInstall(mavenProject, false);
                                 System.out.println("MVN OUTPUT: " + result);
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
-                                // System.out.println("INNERMAP: " + innerMap);
+                                System.out.println("INNERMAP: " + innerMap);
                                 failedTests = new HashSet<>();
                                 obtainLastestTestResults(innerMap, failedTests);
                                 for (String failedTest : failedTests) {
@@ -714,7 +718,7 @@ public class ParserMojo extends AbstractParserMojo {
         // System.out.println(ci.getExtendedTypes());
         for (ClassOrInterfaceType type : ci.getExtendedTypes()) {
             set.add(type.getNameAsString());
-	        System.out.println(type.getNameAsString());
+	        // System.out.println(type.getNameAsString());
             for (final Path anotherFile : wholeTestFiles) {
 		        // System.out.println(type.getNameAsString());
                 // System.out.println("anotherFile: " + anotherFile);
@@ -894,7 +898,7 @@ public class ParserMojo extends AbstractParserMojo {
     private List<Path> wholeTestSources() throws IOException {
         final List<Path> testFiles = new ArrayList<>();
         MavenProject upperProject = mavenProject;
-        System.out.println(upperProject.getBasedir() + "/src/test/java");
+        // System.out.println(upperProject.getBasedir() + "/src/test/java");
 	while (upperProject.hasParent()) {
 	    if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
 	        break;
@@ -903,11 +907,11 @@ public class ParserMojo extends AbstractParserMojo {
             upperProject = upperProject.getParent();
         }
         // System.out.println(upperProject.getBuild().getSourceDirectory());
-        System.out.println(upperProject.getBasedir() + "/src/test/java");
+        // System.out.println(upperProject.getBasedir() + "/src/test/java");
 	if (upperProject.getModules().size() > 0) {
 	    for (String moduleName : upperProject.getModules()) {
                 String append = File.separator + moduleName;
-	        System.out.println(upperProject.getBasedir() + append + "/src/test/java");
+	        // System.out.println(upperProject.getBasedir() + append + "/src/test/java");
                 try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + append + "/src/test/java"))) {
                     paths.filter(Files::isRegularFile)
                             .forEach(testFiles::add);
@@ -930,12 +934,13 @@ public class ParserMojo extends AbstractParserMojo {
         return testFiles;
     }
 
-    private List<Path> javaSources() throws IOException {
+    private List<Path> javaSources() {
         final List<Path> javaFiles = new ArrayList<>();
         try (final Stream<Path> paths = Files.walk(Paths.get(mavenProject.getBuild().getSourceDirectory()))) {
             paths.filter(Files::isRegularFile)
                     .forEach(javaFiles::add);
-        }
+        } catch (IOException IOE) {
+	}
         return javaFiles;
     }
 
