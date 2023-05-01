@@ -536,8 +536,8 @@ public class ParserMojo extends AbstractParserMojo {
             parentFile.setCurIndex(curIndex + 1);
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
-            Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
-            curFile.compilationUnit().tryAddImportToParentCompilationUnit(clazz);
+            String clazzName = parentFile.getCurCI().getNameAsString();
+            curFile.compilationUnit().addImport(clazzName);
             curFile.writeAndReloadCompilationUnit();
             updateJUnit4TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
             // System.out.println(backupFile.getCurCI().getExtendedTypes());
@@ -644,8 +644,9 @@ public class ParserMojo extends AbstractParserMojo {
             parentFile.setCurIndex(curIndex + 1);
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
-            Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
-            curFile.compilationUnit().tryAddImportToParentCompilationUnit(clazz);
+            // Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
+            String clazzName = parentFile.getCurCI().getNameAsString();
+            curFile.compilationUnit().addImport(clazzName);
             curFile.writeAndReloadCompilationUnit();
             updateJUnit5TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
 
