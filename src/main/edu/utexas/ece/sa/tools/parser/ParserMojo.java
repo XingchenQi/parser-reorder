@@ -519,6 +519,8 @@ public class ParserMojo extends AbstractParserMojo {
                                 clazz.getExtendedTypes(i).setName(potentialName);
                             }
                         }
+                        String clazzName = backupFile.getExtendedJavaFile().compilationUnit().getPackageDeclaration().get().getName().toString() + "." + futureShortName + "New" + curFile.getExtendedJavaFile().getCurIndex();
+                        backupFile.compilationUnit().addImport(clazzName);
                         backupFile.writeAndReloadCompilationUnit();
                     }
                     i++;
@@ -536,8 +538,6 @@ public class ParserMojo extends AbstractParserMojo {
             parentFile.setCurIndex(curIndex + 1);
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
-            String clazzName = parentFile.compilationUnit().getPackageDeclaration().get().getName().toString() + "." + parentFile.getCurCI().getNameAsString();
-            curFile.compilationUnit().addImport(clazzName);
             curFile.writeAndReloadCompilationUnit();
             updateJUnit4TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
             // System.out.println(backupFile.getCurCI().getExtendedTypes());
@@ -626,6 +626,8 @@ public class ParserMojo extends AbstractParserMojo {
                                 clazz.getExtendedTypes(i).setName(potentialName);
                             }
                         }
+                        String clazzName = backupFile.getExtendedJavaFile().compilationUnit().getPackageDeclaration().get().getName().toString() + "." + futureShortName + "New" + curFile.getExtendedJavaFile().getCurIndex();
+                        backupFile.compilationUnit().addImport(clazzName);
                         backupFile.writeAndReloadCompilationUnit();
                     }
                     i++;
@@ -645,8 +647,6 @@ public class ParserMojo extends AbstractParserMojo {
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
             // Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
-            String clazzName = parentFile.compilationUnit().getPackageDeclaration().get().getName().toString() + "." + parentFile.getCurCI().getNameAsString();
-            curFile.compilationUnit().addImport(clazzName);
             curFile.writeAndReloadCompilationUnit();
             updateJUnit5TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
 
