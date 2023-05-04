@@ -323,8 +323,24 @@ public class ParserMojo extends AbstractParserMojo {
                             }
                             // System.exit(0);
                             updateJUnitTestFiles(javaFile, wholeTestFiles);
-                            boolean result = MvnCommands.runMvnInstall(mavenProject, false);
-                            System.out.println("MVN OUTPUT: " + result);
+                            try {
+                                boolean result = MvnCommands.runMvnInstall(mavenProject, false);
+                                System.out.println("MVN OUTPUT: " + result);
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                                System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+                                String moduleName = mavenProject.getName();
+                                MavenProject upperProject = mavenProject;
+                                if (upperProject.hasParent()) {
+                                    while (upperProject.hasParent()) {
+                                        if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
+                                            break;
+                                        }
+                                        upperProject = upperProject.getParent();
+                                    }
+                                }
+                                boolean result = MvnCommands.runMvnInstallFromUpper(mavenProject, false, moduleName);
+                            }
                             List<String> testsForNewClass = new LinkedList<>();
                             for (String testForNewClass : tests) {
                                 String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf(this.runner.framework().getDelimiter()));
@@ -371,7 +387,7 @@ public class ParserMojo extends AbstractParserMojo {
                                     newMD.setAnnotations(md.getAnnotations());
                                     javaFile1.writeAndReloadCompilationUnit();
                                 }
-                                result = MvnCommands.runMvnInstall(mavenProject, false);
+                                boolean result = MvnCommands.runMvnInstall(mavenProject, false);
                                 System.out.println("MVN OUTPUT: " + result);
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
                                 System.out.println("INNERMAP: " + innerMap);
@@ -905,17 +921,17 @@ public class ParserMojo extends AbstractParserMojo {
         final List<Path> testFiles = new ArrayList<>();
         MavenProject upperProject = mavenProject;
         // System.out.println(upperProject.getBasedir() + "/src/test/java");
-	while (upperProject.hasParent()) {
-	    if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
-	        break;
-	    }
-	    // System.out.println(upperProject.getParent().getBasedir());
+	    while (upperProject.hasParent()) {
+            if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
+                break;
+            }
+	        // System.out.println(upperProject.getParent().getBasedir());
             upperProject = upperProject.getParent();
         }
         // System.out.println(upperProject.getBuild().getSourceDirectory());
         // System.out.println(upperProject.getBasedir() + "/src/test/java");
-	if (upperProject.getModules().size() > 0) {
-	    for (String moduleName : upperProject.getModules()) {
+        if (upperProject.getModules().size() > 0) {
+            for (String moduleName : upperProject.getModules()) {
                 String append = File.separator + moduleName;
 	        // System.out.println(upperProject.getBasedir() + append + "/src/test/java");
                 try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + append + "/src/test/java"))) {
@@ -925,14 +941,14 @@ public class ParserMojo extends AbstractParserMojo {
                     // ex.printStackTrace();
                 }
             }
-	} else {
-	    try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + "/src/test/java"))) {
+        } else {
+            try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + "/src/test/java"))) {
                 paths.filter(Files::isRegularFile)
                         .forEach(testFiles::add);
             } catch (Exception ex) {
 		// ex.printStackTrace(); 
             }
-	}
+	    }
         /* try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBuild().getTestSourceDirectory()))) {
             paths.filter(Files::isRegularFile)
                     .forEach(testFiles::add);

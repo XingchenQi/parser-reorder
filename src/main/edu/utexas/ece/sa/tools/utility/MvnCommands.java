@@ -63,4 +63,49 @@ public class MvnCommands {
 
         return true;
     }
+
+    public static boolean runMvnInstallFromUpper(MavenProject project, boolean suppressOutput, String moduleName) throws MavenInvocationException {
+        // TODO: Maybe support custom command lines/options?
+        final InvocationRequest request = new DefaultInvocationRequest();
+        request.setGoals(Arrays.asList("install -pl " + moduleName));
+        request.setAlsoMake(true);
+        request.setPomFile(project.getFile());
+        request.setProperties(new Properties());
+        request.getProperties().setProperty("skipTests", "true");
+        request.getProperties().setProperty("rat.skip", "true");
+        request.getProperties().setProperty("dependency-check.skip", "true");
+        request.getProperties().setProperty("enforcer.skip", "true");
+        request.getProperties().setProperty("checkstyle.skip", "true");
+        request.getProperties().setProperty("maven.javadoc.skip", "true");
+        request.getProperties().setProperty("maven.source.skip", "true");
+        request.getProperties().setProperty("gpg.skip", "true");
+
+        request.setUpdateSnapshots(false);
+
+        ByteArrayOutputStream baosOutput = new ByteArrayOutputStream();
+        PrintStream outputStream = new PrintStream(baosOutput);
+        request.setOutputHandler(new PrintStreamHandler(outputStream, true));
+        ByteArrayOutputStream baosError = new ByteArrayOutputStream();
+        PrintStream errorStream = new PrintStream(baosError);
+        request.setErrorHandler(new PrintStreamHandler(errorStream, true));
+
+        final Invoker invoker = new DefaultInvoker();
+        final InvocationResult result = invoker.execute(request);
+
+        if (result.getExitCode() != 0) {
+            // Print out the contents of the output/error streamed out during evocation, if not suppressed
+            if (!suppressOutput) {
+                System.out.println(baosOutput.toString());
+                System.out.println(baosError.toString());
+            }
+
+            if (result.getExecutionException() == null) {
+                throw new RuntimeException("Compilation failed with exit code " + result.getExitCode() + " for an unknown reason");
+            } else {
+                throw new RuntimeException(result.getExecutionException());
+            }
+        }
+
+        return true;
+    }
 }
