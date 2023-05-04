@@ -265,10 +265,23 @@ public class ParserMojo extends AbstractParserMojo {
                 System.out.println("Please provide test name!");
                 return;
             }
+            MavenProject upperProject = mavenProject;
+            File baseDir = mavenProject.getBasedir();
+            if (upperProject.hasParent()) {
+                while (upperProject.hasParent()) {
+                    if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
+                        break;
+                    }
+                    upperProject = upperProject.getParent();
+                }
+            }
+            File upperDir = upperProject.getBasedir();
+            String moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
+            System.out.println("MODULE NAME: " + moduleName);
             // read the test class file one by one
             for (String testClass : testClasses) {
                 // System.out.println(testClass);
-		if (!testClass.equals(testname)) {
+		        if (!testClass.equals(testname)) {
                     continue;
                 }
                 System.out.println("TEST CLASS: " + testClass);
@@ -323,27 +336,15 @@ public class ParserMojo extends AbstractParserMojo {
                             }
                             // System.exit(0);
                             updateJUnitTestFiles(javaFile, wholeTestFiles);
+                            boolean result = false;
                             try {
-                                boolean result = MvnCommands.runMvnInstall(mavenProject, false);
-                                System.out.println("MVN OUTPUT: " + result);
+                                result = MvnCommands.runMvnInstall(mavenProject, false);
                             } catch (Exception ex) {
-                                ex.printStackTrace();
+                                // ex.printStackTrace();
                                 System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                                MavenProject upperProject = mavenProject;
-                                File baseDir = mavenProject.getBasedir();
-                                if (upperProject.hasParent()) {
-                                    while (upperProject.hasParent()) {
-                                        if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
-                                            break;
-                                        }
-                                        upperProject = upperProject.getParent();
-                                    }
-                                }
-                                File upperDir = upperProject.getBasedir();
-                                String moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
-                                System.out.println("MODULE NAME: " + moduleName);
-                                boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
+                                result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
                             }
+                            System.out.println("MVN OUTPUT: " + result);
                             List<String> testsForNewClass = new LinkedList<>();
                             for (String testForNewClass : tests) {
                                 String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf(this.runner.framework().getDelimiter()));
@@ -390,7 +391,14 @@ public class ParserMojo extends AbstractParserMojo {
                                     newMD.setAnnotations(md.getAnnotations());
                                     javaFile1.writeAndReloadCompilationUnit();
                                 }
-                                boolean result = MvnCommands.runMvnInstall(mavenProject, false);
+                                result = false;
+                                try {
+                                    result = MvnCommands.runMvnInstall(mavenProject, false);
+                                } catch (Exception ex) {
+                                    // ex.printStackTrace();
+                                    System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+                                    result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
+                                }
                                 System.out.println("MVN OUTPUT: " + result);
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
                                 System.out.println("INNERMAP: " + innerMap);
@@ -456,6 +464,8 @@ public class ParserMojo extends AbstractParserMojo {
                         MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
                         method.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
                         break;
+                    } else if (beforeMethodAnnotation.getName().toString().equals("Override")) {
+                        method.setAnnotation(i, null);
                     }
                 }
                 System.out.println(method);
@@ -855,6 +865,11 @@ public class ParserMojo extends AbstractParserMojo {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+                    }
+                } else if (node instanceof SuperExpr) {
+                    if (node.getParentNode().isPresent()) {
+                        Node parentNode = ((SuperExpr) node).asSuperExpr().getParentNode().get();
+                        parentNode.replace(node, new NameExpr(javaFile.getExtendedJavaFile().getCurCI().getNameAsString()));
                     }
                 }
             }

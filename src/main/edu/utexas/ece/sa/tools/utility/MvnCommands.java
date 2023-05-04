@@ -70,7 +70,7 @@ public class MvnCommands {
         request.setBaseDirectory(baseDir);
         request.setProjects(Arrays.asList(moduleName));
         request.setAlsoMake(true);
-	request.setPomFile(project.getFile());
+        request.setPomFile(project.getFile());
         request.setProperties(new Properties());
         request.getProperties().setProperty("skipTests", "true");
         request.getProperties().setProperty("rat.skip", "true");
