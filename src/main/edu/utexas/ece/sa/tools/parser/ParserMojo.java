@@ -329,17 +329,18 @@ public class ParserMojo extends AbstractParserMojo {
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                                 System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                                String moduleName = mavenProject.getArtifactId();
                                 MavenProject upperProject = mavenProject;
+                                File baseDir = mavenProject.getBasedir();
                                 if (upperProject.hasParent()) {
                                     while (upperProject.hasParent()) {
                                         if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
                                             break;
                                         }
-                                        moduleName = upperProject.getArtifactId() + "/" + moduleName;
                                         upperProject = upperProject.getParent();
                                     }
                                 }
+                                File upperDir = upperProject.getBasedir();
+                                String moduleName = upperDir.toString().substring(baseDir.toString().length() + 1);
                                 System.out.println("MODULE NAME: " + moduleName);
                                 boolean result = MvnCommands.runMvnInstallFromUpper(mavenProject, false, moduleName);
                             }
