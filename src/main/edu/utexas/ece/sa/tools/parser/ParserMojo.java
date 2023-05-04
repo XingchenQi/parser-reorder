@@ -507,6 +507,7 @@ public class ParserMojo extends AbstractParserMojo {
                     break;
                 }
             }
+            changeFields(ruleField, javaFile);
         }
         /* Set<String> methodsSet = new HashSet<>();
         methodsSet.addAll(methsSet);
@@ -632,6 +633,7 @@ public class ParserMojo extends AbstractParserMojo {
                     break;
                 }
             }
+            changeFields(ruleField, javaFile);
         }
 
         // BeforeEach method
@@ -761,9 +763,10 @@ public class ParserMojo extends AbstractParserMojo {
             // System.out.println("fieldName: " + fieldName);
             for (JavaFile javaFile1 : javaFileList) {
                 FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
-		if (field != null) {
-		    // System.out.println("FOUND");
+		        if (field != null) {
+		            // System.out.println("FOUND");
                     field.setStatic(true);
+                    changeFields(field, javaFile1);
                 }
             }
         }
@@ -936,11 +939,10 @@ public class ParserMojo extends AbstractParserMojo {
             while(!nodes.isEmpty()) {
                 Node node = nodes.peek();
                 if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
-                    System.out.println(node.toString());
-		    if (node.toString().equals("getClass()")) {
-			Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
+		            if (node.toString().equals("getClass()")) {
+			            Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()  + ".class"));
-		    }
+		            }
                 }
                 nodes.poll();
                 for (Node node1 : node.getChildNodes()) {
@@ -950,6 +952,29 @@ public class ParserMojo extends AbstractParserMojo {
         }
         return;
     }
+
+    protected void changeFields(FieldDeclaration fd, JavaFile javaFile) {
+        for (VariableDeclarator vd : fd.getVariables()) {
+            Queue<Node> nodes = new ArrayDeque<>();
+            nodes.add(vd);
+            while(!nodes.isEmpty()) {
+                Node node = nodes.peek();
+                System.out.println(node.toString());
+                if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
+                    if (node.toString().equals("getClass()")) {
+                        Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
+                        parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()  + ".class"));
+                    }
+                }
+                nodes.poll();
+                for (Node node1 : node.getChildNodes()) {
+                    nodes.add(node1);
+                }
+            }
+        }
+        return;
+    }
+
     protected Set<String> getTestClasses(List<String> tests) {
         Set<String> testClasses = new HashSet<>();
         String delimiter = this.runner.framework().getDelimiter();
