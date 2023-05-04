@@ -71,6 +71,15 @@ public class ParserMojo extends AbstractParserMojo {
 
     private String testname;
 
+    // obtain all the test classes
+    private static Set<String> testClasses;
+    // Get all test source files
+    private static List<Path> testFiles;
+    // Get all test source files for upper module
+    private static List<Path> wholeTestFiles;
+    // Get all java source files
+    private static List<Path> javaFiles;
+
     // useful for modules with JUnit 4 tests but depend on something in JUnit 5
     private final boolean forceJUnit4 = Configuration.config().getProperty("dt.detector.forceJUnit4", false);
 
@@ -254,13 +263,13 @@ public class ParserMojo extends AbstractParserMojo {
                 Files.write(ParserPathManager.originalOrderPath(), tests);
             }
             // obtain all the test classes
-            final Set<String> testClasses = getTestClasses(tests);
+            testClasses = getTestClasses(tests);
             // Get all test source files
-            final List<Path> testFiles = testSources();
+            testFiles = testSources();
             // Get all test source files for upper module
-            final List<Path> wholeTestFiles = wholeTestSources();
+            wholeTestFiles = wholeTestSources();
             // Get all java source files
-            final List<Path> javaFiles = javaSources();
+            javaFiles = javaSources();
             if (testname.equals("")) {
                 System.out.println("Please provide test name!");
                 return;
@@ -297,7 +306,7 @@ public class ParserMojo extends AbstractParserMojo {
                             final Map<Integer, Set<JavaFile>> upperLevelFiles = new HashMap<>();
                             int level = 0;
                             // put the first level test classes
-                            Set<String> currentLevelClasses = getUpperLevelClasses(javaFile, wholeTestFiles);
+                            Set<String> currentLevelClasses = getUpperLevelClasses(javaFile);
                             upperLevelClassNames.put(level, currentLevelClasses);
 
                             while (!currentLevelClasses.isEmpty()) {
@@ -317,7 +326,7 @@ public class ParserMojo extends AbstractParserMojo {
                                                     upperLevelFiles.put(level, curLevelFiles);
                                                 }
                                                 Set<String> newCurLvlClasses = new HashSet<>();
-                                                Set<String> newUpperClasses = getUpperLevelClasses(newJavaFile, wholeTestFiles);
+                                                Set<String> newUpperClasses = getUpperLevelClasses(newJavaFile);
                                                 if (!newUpperClasses.isEmpty()) {
                                                     if (!upperLevelClassNames.containsKey(level + 1)) {
                                                         newCurLvlClasses.addAll(newUpperClasses);
@@ -335,7 +344,7 @@ public class ParserMojo extends AbstractParserMojo {
                                 currentLevelClasses = upperLevelClassNames.getOrDefault(level, new HashSet<>());
                             }
                             // System.exit(0);
-                            updateJUnitTestFiles(javaFile, wholeTestFiles);
+                            updateJUnitTestFiles(javaFile);
                             boolean result = false;
                             try {
                                 result = MvnCommands.runMvnInstall(mavenProject, false);
@@ -429,19 +438,19 @@ public class ParserMojo extends AbstractParserMojo {
         }
     }
 
-    protected void updateJUnitTestFiles(JavaFile javaFile, List<Path> wholeTestFiles) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
+    protected void updateJUnitTestFiles(JavaFile javaFile) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
         // JUnit 4
         if (this.runner.framework().getDelimiter().equals(".")) {
             Set<String> methsSet = new HashSet<>();
             Set<String> fldsSet = new HashSet<>();
-            updateJUnit4TestFiles(javaFile, wholeTestFiles, true, methsSet, fldsSet);
+            updateJUnit4TestFiles(javaFile, true, methsSet, fldsSet);
             // System.exit(0);
         }
         // JUnit 5
         if (this.runner.framework().getDelimiter().equals("#")) {
             Set<String> methsSet = new HashSet<>();
             Set<String> fldsSet = new HashSet<>();
-            updateJUnit5TestFiles(javaFile, wholeTestFiles, true, methsSet, fldsSet);
+            updateJUnit5TestFiles(javaFile, true, methsSet, fldsSet);
         }
         javaFile.writeAndReloadCompilationUnit();
     }
@@ -479,7 +488,7 @@ public class ParserMojo extends AbstractParserMojo {
         }
     }
 
-    protected void updateJUnit4TestFiles(JavaFile javaFile, List<Path> wholeTestFiles, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
+    protected void updateJUnit4TestFiles(JavaFile javaFile, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
         // rule field
         FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("Rule");
         if (ruleField != null) {
@@ -532,7 +541,7 @@ public class ParserMojo extends AbstractParserMojo {
             JavaFile backupFile = curFile;
 
             // obtain the extend relationship
-            getUpperLevelClasses(parentFile, wholeTestFiles);
+            getUpperLevelClasses(parentFile);
 
             String backupName = backupFile.path().getFileName().toString();
             String backupShortName = backupName.substring(0, backupName.lastIndexOf("."));
@@ -572,7 +581,7 @@ public class ParserMojo extends AbstractParserMojo {
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
             curFile.writeAndReloadCompilationUnit();
-            updateJUnit4TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
+            updateJUnit4TestFiles(curFile, false, methodsSet, fieldsSet);
             // System.out.println(backupFile.getCurCI().getExtendedTypes());
             /* Set<String> remainingMethodsSetBackup = new HashSet<>();
             remainingMethodsSetBackup.addAll(remainingMethodsSet);
@@ -589,7 +598,7 @@ public class ParserMojo extends AbstractParserMojo {
             // System.out.println("CURFILE: " + curFile.path());
             javaFileList.add(curFile);
         }
-        updateMethods(javaFile, methodsSet, fieldsSet, wholeTestFiles);
+        updateMethods(javaFile, methodsSet, fieldsSet);
         /* for (String fieldName : fieldsSet) {
             System.out.println("fieldName: " + fieldName);
             for (JavaFile javaFile1 : javaFileList) {
@@ -604,7 +613,7 @@ public class ParserMojo extends AbstractParserMojo {
         // System.exit(0);
     }
 
-    protected void updateJUnit5TestFiles(JavaFile javaFile, List<Path> wholeTestFiles, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
+    protected void updateJUnit5TestFiles(JavaFile javaFile, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
         // rule field
         FieldDeclaration ruleField = javaFile.findFieldWithAnnotations("Rule");
         if (ruleField != null) {
@@ -639,7 +648,7 @@ public class ParserMojo extends AbstractParserMojo {
             JavaFile backupFile = curFile;
 
             // obtain the extend relationship
-            getUpperLevelClasses(parentFile, wholeTestFiles);
+            getUpperLevelClasses(parentFile);
 
             String backupName = backupFile.path().getFileName().toString();
             String backupShortName = backupName.substring(0, backupName.lastIndexOf("."));
@@ -681,14 +690,14 @@ public class ParserMojo extends AbstractParserMojo {
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
             // Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
             curFile.writeAndReloadCompilationUnit();
-            updateJUnit5TestFiles(curFile, wholeTestFiles, false, methodsSet, fieldsSet);
+            updateJUnit5TestFiles(curFile, false, methodsSet, fieldsSet);
 
             javaFileList.add(curFile);
         }
-        updateMethods(javaFile, methodsSet, fieldsSet, wholeTestFiles);
+        updateMethods(javaFile, methodsSet, fieldsSet);
     }
 
-    protected void updateMethods(JavaFile javaFile, Set<String> methodsSet, Set<String> fieldsSet, List<Path> wholeTestFiles) throws IOException, DependencyResolutionRequiredException {
+    protected void updateMethods(JavaFile javaFile, Set<String> methodsSet, Set<String> fieldsSet) throws IOException, DependencyResolutionRequiredException {
         Set<String> remainingMethodsSet = new CopyOnWriteArraySet<>();
         remainingMethodsSet.addAll(methodsSet);
 
@@ -698,7 +707,7 @@ public class ParserMojo extends AbstractParserMojo {
         while (curFile.hasExtendedJavaFile()) {
             // System.out.println("DEPS0: " + curFile.path());
             // System.out.println("DEPS1: " + curFile.getCurCI().getExtendedTypes());
-            getUpperLevelClasses(curFile, wholeTestFiles);
+            getUpperLevelClasses(curFile);
             JavaFile parentFile = curFile.getExtendedJavaFile();
             curFile = parentFile;
             javaFileList.add(curFile);
@@ -749,7 +758,7 @@ public class ParserMojo extends AbstractParserMojo {
         }
     }
 
-    protected Set<String> getUpperLevelClasses(JavaFile javaFile, List<Path> wholeTestFiles) throws DependencyResolutionRequiredException, IOException {
+    protected Set<String> getUpperLevelClasses(JavaFile javaFile) throws DependencyResolutionRequiredException, IOException {
         ClassOrInterfaceDeclaration ci = javaFile.getCurCI();
         String currentLevelClassName = ci.getNameAsString();
         // System.out.println("???" + currentLevelClassName);
@@ -799,6 +808,11 @@ public class ParserMojo extends AbstractParserMojo {
         Map<VariableDeclarator, Range> localMap = new HashMap<>();
         // System.out.println(md.getParentNode().get().getParentNode().get().getClass().getName());
         List<Node> nodesList = new LinkedList<>();
+        try {
+            getUpperLevelClasses(javaFile);
+        } catch (IOException | DependencyResolutionRequiredException ex) {
+
+        }
         for (Statement stmt : md.getBody().get().getStatements()) {
             Queue<Node> nodes = new ArrayDeque<>();
             nodes.add(stmt);
