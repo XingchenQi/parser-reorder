@@ -347,13 +347,13 @@ public class ParserMojo extends AbstractParserMojo {
                             updateJUnitTestFiles(javaFile);
                             boolean result = false;
 			    // System.exit(0);
-                            try {
-                                result = MvnCommands.runMvnInstall(mavenProject, false);
-                            } catch (Exception ex) {
+                            // try {
+                            //     result = MvnCommands.runMvnInstall(mavenProject, false);
+                            // } catch (Exception ex) {
                                 // ex.printStackTrace();
-                                System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                                result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
-                            }
+                            System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+                            result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
+                            // }
                             System.out.println("MVN OUTPUT: " + result);
                             List<String> testsForNewClass = new LinkedList<>();
                             for (String testForNewClass : tests) {
@@ -396,19 +396,19 @@ public class ParserMojo extends AbstractParserMojo {
                                     System.out.println("2: " + md);
                                     System.out.println("3: " + md.getBody());
                                     System.out.println("4: " + md.getBody().get()); */
-                                    newMD.setThrownExceptions(md.getThrownExceptions());
+				    newMD.setThrownExceptions(md.getThrownExceptions());
                                     newMD.setBody(md.getBody().get());
                                     newMD.setAnnotations(md.getAnnotations());
                                     javaFile1.writeAndReloadCompilationUnit();
                                 }
                                 result = false;
-                                try {
-                                    result = MvnCommands.runMvnInstall(mavenProject, false);
-                                } catch (Exception ex) {
+                                // try {
+                                // result = MvnCommands.runMvnInstall(mavenProject, false);
+                                // } catch (Exception ex) {
                                     // ex.printStackTrace();
-                                    System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                                    result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
-                                }
+                                System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+                                result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
+                                // }
                                 System.out.println("MVN OUTPUT: " + result);
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
                                 System.out.println("INNERMAP: " + innerMap);
@@ -909,7 +909,7 @@ public class ParserMojo extends AbstractParserMojo {
                 }
             }
         }
-        // System.out.println(set);
+        System.out.println(set);
         return set;
     }
 
@@ -1023,9 +1023,9 @@ public class ParserMojo extends AbstractParserMojo {
 	        // System.out.println(upperProject.getParent().getBasedir());
             upperProject = upperProject.getParent();
         }
-        // System.out.println(upperProject.getBuild().getSourceDirectory());
+        System.out.println(upperProject.getBuild().getSourceDirectory());
         // System.out.println(upperProject.getBasedir() + "/src/test/java");
-        if (upperProject.getModules().size() > 0) {
+        if (upperProject.getCollectedProjects() != null && upperProject.getCollectedProjects().size() > 0) {
             for (MavenProject mp : upperProject.getCollectedProjects()) {
                 // String append = File.separator + moduleName;
 	            // System.out.println(upperProject.getBasedir() + append + "/src/test/java");
