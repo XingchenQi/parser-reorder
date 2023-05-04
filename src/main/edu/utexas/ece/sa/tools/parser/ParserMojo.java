@@ -729,6 +729,17 @@ public class ParserMojo extends AbstractParserMojo {
                         Set<String> additionalMethods = new HashSet<>();
                         for (MethodDeclaration md : methodsList) {
                             md.setStatic(true);
+                            // deal with annotations
+                            NodeList<AnnotationExpr> annotations = md.getAnnotations();
+                            NodeList<AnnotationExpr> newAnnotations = new NodeList<>();
+                            for (AnnotationExpr ae : annotations) {
+                                if (ae.getName().toString().equals("Override")) {
+                                    continue;
+                                } else {
+                                    newAnnotations.add(ae);
+                                }
+                            }
+                            md.setAnnotations(newAnnotations);
                             additionalMethods.addAll(getRelatedMethods(md));
                             fieldsSet.addAll(getRelatedFields(md, javaFile1, true));
                         }
@@ -754,6 +765,7 @@ public class ParserMojo extends AbstractParserMojo {
             }
         }
         for (JavaFile javaFile1 : javaFileList) {
+            System.out.println(javaFile1.path());
             javaFile1.writeAndReloadCompilationUnit();
         }
     }
