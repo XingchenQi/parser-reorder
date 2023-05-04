@@ -342,7 +342,7 @@ public class ParserMojo extends AbstractParserMojo {
                                 File upperDir = upperProject.getBasedir();
                                 String moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
                                 System.out.println("MODULE NAME: " + moduleName);
-                                boolean result = MvnCommands.runMvnInstallFromUpper(mavenProject, false, upperDir, moduleName);
+                                boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
                             }
                             List<String> testsForNewClass = new LinkedList<>();
                             for (String testForNewClass : tests) {
