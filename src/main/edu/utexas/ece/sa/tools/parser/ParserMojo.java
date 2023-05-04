@@ -482,6 +482,7 @@ public class ParserMojo extends AbstractParserMojo {
                     }
                 }
                 method.setAnnotations(newAnnotations);
+                changeMethods(method);
                 // System.out.println(method);
                 fieldsSet.addAll(getRelatedFields(method, javaFile, false));
                 methodsSet.addAll(getRelatedMethods(method));
@@ -730,6 +731,7 @@ public class ParserMojo extends AbstractParserMojo {
                         Set<String> additionalMethods = new HashSet<>();
                         for (MethodDeclaration md : methodsList) {
                             md.setStatic(true);
+                            changeMethods(md);
                             // deal with annotations
                             NodeList<AnnotationExpr> annotations = md.getAnnotations();
                             NodeList<AnnotationExpr> newAnnotations = new NodeList<>();
@@ -927,6 +929,25 @@ public class ParserMojo extends AbstractParserMojo {
         return set;
     }
 
+    protected void changeMethods(MethodDeclaration md) {
+        Set<String> set = new HashSet<>();
+        for (Statement stmt : md.getBody().get().getStatements()) {
+            Queue<Node> nodes = new ArrayDeque<>();
+            nodes.add(stmt);
+            while(!nodes.isEmpty()) {
+                Node node = nodes.peek();
+                if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
+                    System.out.println(node.toString());
+                    set.add(((MethodCallExpr) node).asMethodCallExpr().getName().asString());
+                }
+                nodes.poll();
+                for (Node node1 : node.getChildNodes()) {
+                    nodes.add(node1);
+                }
+            }
+        }
+        return;
+    }
     protected Set<String> getTestClasses(List<String> tests) {
         Set<String> testClasses = new HashSet<>();
         String delimiter = this.runner.framework().getDelimiter();
