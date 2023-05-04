@@ -246,7 +246,6 @@ public class JavaFile {
                     final FieldDeclaration field = (FieldDeclaration)bodyDeclaration;
                     final List<String> fieldNameLists = getSimpleFieldName(field, classDeclaration);
                     for (String fieldName : fieldNameLists) {
-                        // System.out.println("JAvaField: " + fieldName);
                         if (fieldName.equals(name)) {
                             return field;
                         }
@@ -311,7 +310,6 @@ public class JavaFile {
                 if (bodyDeclaration instanceof MethodDeclaration) {
                     final MethodDeclaration method = (MethodDeclaration)bodyDeclaration;
                     for (AnnotationExpr annotationExpr : method.getAnnotations()) {
-                        // System.out.println(annotationExpr.getNameAsString() + ": " + annotation);
                         if (annotationExpr.getNameAsString().equals(annotation)) {
                             methods.add(method);
                             break;

@@ -110,8 +110,7 @@ public class ParserMojo extends AbstractParserMojo {
         if (!locateTestList.containsKey(id)) {
             Logger.getGlobal().log(Level.INFO, "Locating tests...");
             try {
-                // System.out.println(TestLocator.testClasses(this.mavenProject));
-		locateTestList.put(id, OperationTime.runOperation(() -> {
+		            locateTestList.put(id, OperationTime.runOperation(() -> {
                     return new ArrayList<String>(JavaConverters.bufferAsJavaList(TestLocator.tests(this.mavenProject, testFramework).toBuffer()));
                 }, (tests, time) -> {
                     Logger.getGlobal().log(Level.INFO, "Located " + tests.size() + " tests. Time taken: " + time.elapsedSeconds() + " seconds");
@@ -253,11 +252,11 @@ public class ParserMojo extends AbstractParserMojo {
                 Files.createDirectories(ParserPathManager.cachePath());
             }
             final ErrorLogger logger = new ErrorLogger();
-            loadTestRunners(logger, mavenProject);
-            // final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
-            // if (runnerOption.isDefined()) {
-            // this.runner = lo
-            // }
+            // loadTestRunners(logger, mavenProject);
+            final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
+            if (runnerOption.isDefined()) {
+                this.runner = runnerOption.get();
+            }
             final List<String> tests = getTests(mavenProject, this.runner.framework());
             if (!Files.exists(ParserPathManager.originalOrderPath())) {
                 Files.write(ParserPathManager.originalOrderPath(), tests);
@@ -289,7 +288,6 @@ public class ParserMojo extends AbstractParserMojo {
             System.out.println("MODULE NAME: " + moduleName);
             // read the test class file one by one
             for (String testClass : testClasses) {
-                // System.out.println(testClass);
 		        if (!testClass.equals(testname)) {
                     continue;
                 }
@@ -343,26 +341,17 @@ public class ParserMojo extends AbstractParserMojo {
                                 level += 1;
                                 currentLevelClasses = upperLevelClassNames.getOrDefault(level, new HashSet<>());
                             }
-                            // System.exit(0);
                             updateJUnitTestFiles(javaFile);
                             boolean result = false;
-			    // System.exit(0);
-                            // try {
-                            //     result = MvnCommands.runMvnInstall(mavenProject, false);
-                            // } catch (Exception ex) {
-                                // ex.printStackTrace();
                             System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
                             result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
-                            // }
                             System.out.println("MVN OUTPUT: " + result);
                             List<String> testsForNewClass = new LinkedList<>();
                             for (String testForNewClass : tests) {
                                 String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf(this.runner.framework().getDelimiter()));
-                                // System.out.println("testClassForNewClass: " +  testClassForNewClass);
                                 if (testClassForNewClass.equals(testClass)) {
                                     testsForNewClass.add(testForNewClass);
                                 }
-                                // System.out.println("testClass: " +  testClass);
                             }
                             Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
 
@@ -382,40 +371,28 @@ public class ParserMojo extends AbstractParserMojo {
                                 }
                                 javaFile1.writeAndReloadCompilationUnit();
                                 List<String> failedTestsList = new LinkedList<>();
+                                System.out.println("---------------FAILED TESTS TO BE SPLIT---------------");
                                 for (String failedTest : failedTests) {
                                     String longFailedTestClassName = testClass + "New" + index;
                                     String shortFailedTestName = failedTest.substring(failedTest.lastIndexOf(".") + 1);
-				                    System.out.println(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     MethodDeclaration newMD = javaFile1.addMethod(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     failedTestsList.add(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
-                                    // System.out.println(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
-                                    // System.out.println(fileShortName + ": " + shortFailedTestName);
                                     System.out.println(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
 				                    MethodDeclaration md = javaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
-                                    /* System.out.println("1: " + newMD);
-                                    System.out.println("2: " + md);
-                                    System.out.println("3: " + md.getBody());
-                                    System.out.println("4: " + md.getBody().get()); */
-				    newMD.setThrownExceptions(md.getThrownExceptions());
+				                    newMD.setThrownExceptions(md.getThrownExceptions());
                                     newMD.setBody(md.getBody().get());
                                     newMD.setAnnotations(md.getAnnotations());
                                     javaFile1.writeAndReloadCompilationUnit();
                                 }
                                 result = false;
-                                // try {
-                                // result = MvnCommands.runMvnInstall(mavenProject, false);
-                                // } catch (Exception ex) {
-                                    // ex.printStackTrace();
                                 System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
                                 result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
-                                // }
                                 System.out.println("MVN OUTPUT: " + result);
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
-                                System.out.println("INNERMAP: " + innerMap);
+                                System.out.println("NEW RUNNING RESULTS: " + innerMap);
                                 failedTests = new HashSet<>();
                                 obtainLastestTestResults(innerMap, failedTests);
                                 for (String failedTest : failedTests) {
-                                    // System.out.println("FAILED TEST: " + failedTest);
                                     MethodDeclaration md = javaFile1.findMethodDeclaration(failedTest);
                                     javaFile1.removeMethod(md);
                                 }
@@ -427,7 +404,6 @@ public class ParserMojo extends AbstractParserMojo {
                                 javaFile.removeMethod(md);
                             }
                             javaFile.writeAndReloadCompilationUnit();
-                            // restore(javaFile);
                         }
                     }
                 }
@@ -445,7 +421,6 @@ public class ParserMojo extends AbstractParserMojo {
             Set<String> methsSet = new HashSet<>();
             Set<String> fldsSet = new HashSet<>();
             updateJUnit4TestFiles(javaFile, true, methsSet, fldsSet);
-            // System.exit(0);
         }
         // JUnit 5
         if (this.runner.framework().getDelimiter().equals("#")) {
@@ -473,7 +448,6 @@ public class ParserMojo extends AbstractParserMojo {
                         Class clazz = projectClassLoader().loadClass(afterAnnotation);
                         method.tryAddImportToParentCompilationUnit(clazz);
                         MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                        // method.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
                         newAnnotations.add((AnnotationExpr) markerAnnotationExpr);
                     } else if (beforeMethodAnnotation.getName().toString().equals("Override")) {
                         continue;
@@ -482,10 +456,9 @@ public class ParserMojo extends AbstractParserMojo {
                     }
                 }
                 method.setAnnotations(newAnnotations);
-                // System.out.println(method);
                 fieldsSet.addAll(getRelatedFields(method, javaFile, false));
                 methodsSet.addAll(getRelatedMethods(method));
-		changeMethods(method, javaFile);
+		        changeMethods(method, javaFile);
             }
         }
     }
@@ -509,29 +482,10 @@ public class ParserMojo extends AbstractParserMojo {
             }
             changeFields(ruleField, javaFile);
         }
-        /* Set<String> methodsSet = new HashSet<>();
-        methodsSet.addAll(methsSet);
-        Set<String> fieldsSet = new HashSet<>();
-        fieldsSet.addAll(fldsSet); */
         // Before method
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "Before", "org.junit.BeforeClass");
         // After Method
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "After", "org.junit.AfterClass");
-
-        /* Set<String> remainingMethodsSet = new HashSet<>();
-        for (String methodName : methodsSet) {
-            String packageName = javaFile.compilationUnit().getPackageDeclaration().get().getNameAsString();
-            String className = javaFile.getCurCI().getNameAsString();
-            System.out.println(packageName);
-            MethodDeclaration method = javaFile.findMethodDeclaration(packageName + "." + className + "." + methodName);
-            if (method != null) {
-                method.setStatic(true);
-                fieldsSet.addAll(getRelatedFields(method));
-                remainingMethodsSet.addAll(getRelatedMethods(method));
-            } else {
-                remainingMethodsSet.add(methodName);
-            }
-        } */
 
         if (!lowLevel) return;
         List<JavaFile> javaFileList = new LinkedList<>();
@@ -571,8 +525,6 @@ public class ParserMojo extends AbstractParserMojo {
                     i++;
                 }
             }
-            // System.out.println("Set0: " + backupFile.path());
-            // System.out.println("Set1: " + backupFile.getCurCI().getExtendedTypes());
             int curIndex = parentFile.getCurIndex();
             Path path1 = ParserPathManager.backupPath1(parentFile.path(), "New" + curIndex + ".java");
             String fileName = parentFile.path().getFileName().toString();
@@ -585,35 +537,9 @@ public class ParserMojo extends AbstractParserMojo {
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
             curFile.writeAndReloadCompilationUnit();
             updateJUnit4TestFiles(curFile, false, methodsSet, fieldsSet);
-            // System.out.println(backupFile.getCurCI().getExtendedTypes());
-            /* Set<String> remainingMethodsSetBackup = new HashSet<>();
-            remainingMethodsSetBackup.addAll(remainingMethodsSet);
-            for (String methodName : remainingMethodsSet) {
-                String packageName = curFile.compilationUnit().getPackageDeclaration().get().getNameAsString();
-                String className = curFile.getCurCI().getNameAsString();
-                MethodDeclaration method = curFile.findMethodDeclaration(packageName + "." + className + "." + methodName);
-                if (method != null) {
-                    method.setStatic(true);
-                    fieldsSet.addAll(getRelatedFields(method));
-                }
-                curFile.writeAndReloadCompilationUnit();
-            } */
-            // System.out.println("CURFILE: " + curFile.path());
             javaFileList.add(curFile);
         }
         updateMethods(javaFile, methodsSet, fieldsSet);
-        /* for (String fieldName : fieldsSet) {
-            System.out.println("fieldName: " + fieldName);
-            for (JavaFile javaFile1 : javaFileList) {
-                FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
-                if (field != null) {
-                    field.setStatic(true);
-                }
-                javaFile1.writeAndReloadCompilationUnit();
-            }
-        } */
-        // System.exit(0);
-        // System.exit(0);
     }
 
     protected void updateJUnit5TestFiles(JavaFile javaFile, boolean lowLevel, Set<String> methodsSet, Set<String> fieldsSet) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
@@ -679,8 +605,6 @@ public class ParserMojo extends AbstractParserMojo {
                     i++;
                 }
             }
-            // System.out.println("Set0: " + backupFile.path());
-            // System.out.println("Set1: " + backupFile.getCurCI().getExtendedTypes());
 
             int curIndex = parentFile.getCurIndex();
             Path path1 = ParserPathManager.backupPath1(parentFile.path(), "New" + curIndex + ".java");
@@ -692,7 +616,6 @@ public class ParserMojo extends AbstractParserMojo {
             parentFile.setCurIndex(curIndex + 1);
             backupFile.setExtendedJavaFile(curFile);
             curFile.setExtendedJavaFile(parentFile.getExtendedJavaFile());
-            // Class clazz = projectClassLoader().loadClass(parentFile.getCurCI().getNameAsString());
             curFile.writeAndReloadCompilationUnit();
             updateJUnit5TestFiles(curFile, false, methodsSet, fieldsSet);
 
@@ -709,13 +632,10 @@ public class ParserMojo extends AbstractParserMojo {
         JavaFile curFile = javaFile;
         javaFileList.add(curFile);
         while (curFile.hasExtendedJavaFile()) {
-            // System.out.println("DEPS0: " + curFile.path());
-            // System.out.println("DEPS1: " + curFile.getCurCI().getExtendedTypes());
             getUpperLevelClasses(curFile);
             JavaFile parentFile = curFile.getExtendedJavaFile();
             curFile = parentFile;
             javaFileList.add(curFile);
-            // System.out.println("DEPS2: " + curFile.path());
         }
         Set<String> processedMethods = new HashSet<>();
         while (true) {
@@ -729,7 +649,6 @@ public class ParserMojo extends AbstractParserMojo {
                     String className = javaFile1.getCurCI().getNameAsString();
                     List<MethodDeclaration> methodsList = javaFile1.findMethodDeclarations(packageName + "." + className + "." + methodName);
                     if (methodsList.size() > 0) {
-                        // System.out.println("REMOVE: " + methodName);
                         Set<String> additionalMethods = new HashSet<>();
                         for (MethodDeclaration md : methodsList) {
                             md.setStatic(true);
@@ -760,11 +679,9 @@ public class ParserMojo extends AbstractParserMojo {
             }
         }
         for (String fieldName : fieldsSet) {
-            // System.out.println("fieldName: " + fieldName);
             for (JavaFile javaFile1 : javaFileList) {
                 FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
 		        if (field != null) {
-		            // System.out.println("FOUND");
                     field.setStatic(true);
                     changeFields(field, javaFile1);
                 }
@@ -778,38 +695,27 @@ public class ParserMojo extends AbstractParserMojo {
     protected Set<String> getUpperLevelClasses(JavaFile javaFile) throws DependencyResolutionRequiredException, IOException {
         ClassOrInterfaceDeclaration ci = javaFile.getCurCI();
         String currentLevelClassName = ci.getNameAsString();
-        // System.out.println("???" + currentLevelClassName);
         Set<String> set = new HashSet<String>();
-        // System.out.println(ci.getExtendedTypes());
         for (ClassOrInterfaceType type : ci.getExtendedTypes()) {
             set.add(type.getNameAsString());
-	        // System.out.println(type.getNameAsString());
             for (final Path anotherFile : wholeTestFiles) {
-		        // System.out.println(type.getNameAsString());
-                // System.out.println("anotherFile: " + anotherFile);
 		        if (Files.exists(anotherFile) && FilenameUtils.isExtension(anotherFile.getFileName().toString(), "java")) {
                     if (anotherFile.getFileName().toString().equals(type.getNameAsString() + ".java")) {
-                        // System.out.println(anotherFile.getFileName().toString());
                         String newFileName = anotherFile.getFileName().toString();
                         String newFileShortName = newFileName.substring(0, newFileName.lastIndexOf("."));
                         JavaFile newJavaFile = JavaFile.loadFile(anotherFile, classpath(), ParserPathManager.compiledPath(anotherFile).getParent(), newFileShortName, "");
                         javaFile.setExtendedJavaFile(newJavaFile);
-                        // System.out.println(javaFile);
-			            // System.out.println(javaFile.getExtendedJavaFile());
 			            break;
                     }
                 }
             }
         }
-        // System.out.println(javaFile);
-        // System.out.println(javaFile.getExtendedJavaFile());
         return set;
     }
 
     private void obtainLastestTestResults(Map<String, TestResult> map, Set<String> failedTests) {
         for (String key : map.keySet()) {
             TestResult testResult = map.get(key);
-            // System.out.println("RESULT: " + testResult.result().toString());
             if (testResult.result().toString().equals("FAILURE")) {
                 failedTests.add(key);;
             }
@@ -823,7 +729,6 @@ public class ParserMojo extends AbstractParserMojo {
         Map<String, Range> variableNameMap = new HashMap<>();
         Set<String> set = new HashSet<>();
         Map<VariableDeclarator, Range> localMap = new HashMap<>();
-        // System.out.println(md.getParentNode().get().getParentNode().get().getClass().getName());
         List<Node> nodesList = new LinkedList<>();
         try {
             getUpperLevelClasses(javaFile);
@@ -833,10 +738,8 @@ public class ParserMojo extends AbstractParserMojo {
         for (Statement stmt : md.getBody().get().getStatements()) {
             Queue<Node> nodes = new ArrayDeque<>();
             nodes.add(stmt);
-            // nodesList.add(stmt);
             while(!nodes.isEmpty()) {
                 Node node = nodes.peek();
-                // System.out.println("NODE: " + node + " " + node.getClass());
                 if (node instanceof VariableDeclarationExpr) {
                     NodeList<VariableDeclarator> variableDeclarators = ((VariableDeclarationExpr) node).asVariableDeclarationExpr().getVariables();
                     for (VariableDeclarator variableDeclarator: variableDeclarators) {
@@ -856,7 +759,6 @@ public class ParserMojo extends AbstractParserMojo {
                         if (node.getClass().getName().equals("com.github.javaparser.ast.expr.NameExpr")) {
                             String name = ((NameExpr) node).asNameExpr().getNameAsString();
                             variableNameMap.put(name, potentialNode.getRange().get());
-                            // System.out.println("NEWNODE: " + name + " " + node + " " + node.getClass());
                         }
                     }
                 }
@@ -866,8 +768,6 @@ public class ParserMojo extends AbstractParserMojo {
                             Node potentialNode = ni;
                             String name = ((SimpleName) potentialNode).asString();
                             variableNameMap.put(name, potentialNode.getRange().get());
-                            // System.out.println("NEWNODE: " + name + " " + potentialNode + " " + potentialNode.getClass());
-
                         }
                     }
                 }
@@ -891,11 +791,9 @@ public class ParserMojo extends AbstractParserMojo {
                 }
                 if (contain == false) {
                     set.add(variableName);
-                    // System.out.println("put: " + variableName);
                 }
             }
             for (Node node : nodesList) {
-                // System.out.println(node);
                 if (node instanceof ThisExpr) {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
@@ -1015,20 +913,15 @@ public class ParserMojo extends AbstractParserMojo {
     private List<Path> wholeTestSources() throws IOException {
         final List<Path> testFiles = new ArrayList<>();
         MavenProject upperProject = mavenProject;
-        // System.out.println(upperProject.getBasedir() + "/src/test/java");
 	    while (upperProject.hasParent()) {
             if (upperProject.getParent() == null || upperProject.getParent().getBasedir() == null) {
                 break;
             }
-	        // System.out.println(upperProject.getParent().getBasedir());
             upperProject = upperProject.getParent();
         }
-        System.out.println(upperProject.getBuild().getSourceDirectory());
-        // System.out.println(upperProject.getBasedir() + "/src/test/java");
+        // System.out.println(upperProject.getBuild().getSourceDirectory());
         if (upperProject.getCollectedProjects() != null && upperProject.getCollectedProjects().size() > 0) {
             for (MavenProject mp : upperProject.getCollectedProjects()) {
-                // String append = File.separator + moduleName;
-	            // System.out.println(upperProject.getBasedir() + append + "/src/test/java");
                 try (final Stream<Path> paths = Files.walk(Paths.get(mp.getBuild().getTestSourceDirectory()))) {
                     paths.filter(Files::isRegularFile)
                             .forEach(testFiles::add);
@@ -1044,10 +937,6 @@ public class ParserMojo extends AbstractParserMojo {
 		        // ex.printStackTrace();
             }
 	    }
-        /* try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBuild().getTestSourceDirectory()))) {
-            paths.filter(Files::isRegularFile)
-                    .forEach(testFiles::add);
-        } */
         return testFiles;
     }
 
