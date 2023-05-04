@@ -211,7 +211,7 @@ public class JavaFile {
                     final MethodDeclaration method = (MethodDeclaration)bodyDeclaration;
                     final String fullMethodName = getFullyQualifiedMethodName(method, classDeclaration);
                     // System.out.println("NAME: " + fullMethodName + " : " + name);
-                    if (fullMethodName.equalsIgnoreCase(name)) {
+                    if (fullMethodName.equals(name)) {
                         return method;
                     }
                 }
@@ -229,7 +229,7 @@ public class JavaFile {
                     final MethodDeclaration method = (MethodDeclaration)bodyDeclaration;
                     final String fullMethodName = getFullyQualifiedMethodName(method, classDeclaration);
                     // System.out.println("NAME: " + fullMethodName + " : " + name);
-                    if (fullMethodName.equalsIgnoreCase(name)) {
+                    if (fullMethodName.equals(name)) {
                         list.add(method);
                     }
                 }
@@ -247,7 +247,7 @@ public class JavaFile {
                     final List<String> fieldNameLists = getSimpleFieldName(field, classDeclaration);
                     for (String fieldName : fieldNameLists) {
                         // System.out.println("JAvaField: " + fieldName);
-                        if (fieldName.equalsIgnoreCase(name)) {
+                        if (fieldName.equals(name)) {
                             return field;
                         }
                     }

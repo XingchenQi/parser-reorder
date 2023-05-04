@@ -346,6 +346,7 @@ public class ParserMojo extends AbstractParserMojo {
                             // System.exit(0);
                             updateJUnitTestFiles(javaFile);
                             boolean result = false;
+			    // System.exit(0);
                             try {
                                 result = MvnCommands.runMvnInstall(mavenProject, false);
                             } catch (Exception ex) {
@@ -755,17 +756,16 @@ public class ParserMojo extends AbstractParserMojo {
             }
         }
         for (String fieldName : fieldsSet) {
-            System.out.println("fieldName: " + fieldName);
+            // System.out.println("fieldName: " + fieldName);
             for (JavaFile javaFile1 : javaFileList) {
                 FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
-                if (field != null) {
+		if (field != null) {
+		    // System.out.println("FOUND");
                     field.setStatic(true);
-                    // fieldsSet.remove(field);
                 }
             }
         }
         for (JavaFile javaFile1 : javaFileList) {
-            System.out.println(javaFile1.path());
             javaFile1.writeAndReloadCompilationUnit();
         }
     }
