@@ -811,7 +811,7 @@ public class ParserMojo extends AbstractParserMojo {
         try {
             getUpperLevelClasses(javaFile);
         } catch (IOException | DependencyResolutionRequiredException ex) {
-
+            ex.printStackTrace();
         }
         for (Statement stmt : md.getBody().get().getStatements()) {
             Queue<Node> nodes = new ArrayDeque<>();
@@ -967,10 +967,10 @@ public class ParserMojo extends AbstractParserMojo {
         // System.out.println(upperProject.getBuild().getSourceDirectory());
         // System.out.println(upperProject.getBasedir() + "/src/test/java");
         if (upperProject.getModules().size() > 0) {
-            for (String moduleName : upperProject.getModules()) {
-                String append = File.separator + moduleName;
-	        // System.out.println(upperProject.getBasedir() + append + "/src/test/java");
-                try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + append + "/src/test/java"))) {
+            for (MavenProject mp : upperProject.getCollectedProjects()) {
+                // String append = File.separator + moduleName;
+	            // System.out.println(upperProject.getBasedir() + append + "/src/test/java");
+                try (final Stream<Path> paths = Files.walk(Paths.get(mp.getBuild().getTestSourceDirectory()))) {
                     paths.filter(Files::isRegularFile)
                             .forEach(testFiles::add);
                 } catch (Exception ex) {
@@ -978,11 +978,11 @@ public class ParserMojo extends AbstractParserMojo {
                 }
             }
         } else {
-            try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBasedir() + "/src/test/java"))) {
+            try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBuild().getTestSourceDirectory()))) {
                 paths.filter(Files::isRegularFile)
                         .forEach(testFiles::add);
             } catch (Exception ex) {
-		// ex.printStackTrace(); 
+		        // ex.printStackTrace();
             }
 	    }
         /* try (final Stream<Path> paths = Files.walk(Paths.get(upperProject.getBuild().getTestSourceDirectory()))) {
