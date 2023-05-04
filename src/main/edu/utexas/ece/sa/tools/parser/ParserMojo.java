@@ -481,7 +481,7 @@ public class ParserMojo extends AbstractParserMojo {
                     }
                 }
                 method.setAnnotations(newAnnotations);
-                System.out.println(method);
+                // System.out.println(method);
                 fieldsSet.addAll(getRelatedFields(method, javaFile, false));
                 methodsSet.addAll(getRelatedMethods(method));
             }
@@ -755,7 +755,7 @@ public class ParserMojo extends AbstractParserMojo {
             }
         }
         for (String fieldName : fieldsSet) {
-            // System.out.println("fieldName: " + fieldName);
+            System.out.println("fieldName: " + fieldName);
             for (JavaFile javaFile1 : javaFileList) {
                 FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
                 if (field != null) {
@@ -904,7 +904,7 @@ public class ParserMojo extends AbstractParserMojo {
                 }
             }
         }
-
+        // System.out.println(set);
         return set;
     }
 
