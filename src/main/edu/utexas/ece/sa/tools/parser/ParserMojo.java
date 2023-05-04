@@ -959,7 +959,6 @@ public class ParserMojo extends AbstractParserMojo {
             nodes.add(vd);
             while(!nodes.isEmpty()) {
                 Node node = nodes.peek();
-                System.out.println(node.toString());
                 if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
                     if (node.toString().equals("getClass()")) {
                         Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
