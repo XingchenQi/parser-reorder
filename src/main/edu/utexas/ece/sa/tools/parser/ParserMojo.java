@@ -482,7 +482,7 @@ public class ParserMojo extends AbstractParserMojo {
                 }
                 method.setAnnotations(newAnnotations);
                 System.out.println(method);
-                fieldsSet.addAll(getRelatedFields(method, javaFile));
+                fieldsSet.addAll(getRelatedFields(method, javaFile, false));
                 methodsSet.addAll(getRelatedMethods(method));
             }
         }
@@ -730,7 +730,7 @@ public class ParserMojo extends AbstractParserMojo {
                         for (MethodDeclaration md : methodsList) {
                             md.setStatic(true);
                             additionalMethods.addAll(getRelatedMethods(md));
-                            fieldsSet.addAll(getRelatedFields(md, javaFile1));
+                            fieldsSet.addAll(getRelatedFields(md, javaFile1, true));
                         }
                         remainingMethodsSet.addAll(additionalMethods);
                         remainingMethodsSet.remove(methodName);
@@ -802,7 +802,7 @@ public class ParserMojo extends AbstractParserMojo {
         }
     }
 
-    protected Set<String> getRelatedFields(MethodDeclaration md, JavaFile javaFile) {
+    protected Set<String> getRelatedFields(MethodDeclaration md, JavaFile javaFile, boolean flag) {
         Map<String, Range> variableNameMap = new HashMap<>();
         Set<String> set = new HashSet<>();
         Map<VariableDeclarator, Range> localMap = new HashMap<>();
@@ -884,7 +884,7 @@ public class ParserMojo extends AbstractParserMojo {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
                     }
-                } else if (node instanceof SuperExpr) {
+                } else if (flag && node instanceof SuperExpr) {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((SuperExpr) node).asSuperExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getExtendedJavaFile().getCurCI().getNameAsString()));
