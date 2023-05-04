@@ -66,10 +66,11 @@ public class MvnCommands {
     public static boolean runMvnInstallFromUpper(MavenProject project, boolean suppressOutput, File baseDir, String moduleName) throws MavenInvocationException {
         // TODO: Maybe support custom command lines/options?
         final InvocationRequest request = new DefaultInvocationRequest();
-        request.setGoals(Arrays.asList("install -pl " + moduleName));
+        request.setGoals(Arrays.asList("install"));
         request.setBaseDirectory(baseDir);
+        request.setProjects(Arrays.asList(moduleName));
         request.setAlsoMake(true);
-        request.setPomFile(project.getFile());
+	request.setPomFile(project.getFile());
         request.setProperties(new Properties());
         request.getProperties().setProperty("skipTests", "true");
         request.getProperties().setProperty("rat.skip", "true");
@@ -89,8 +90,7 @@ public class MvnCommands {
         PrintStream errorStream = new PrintStream(baosError);
         request.setErrorHandler(new PrintStreamHandler(errorStream, true));
 
-        System.out.println(request.getGoals());
-        final Invoker invoker = new DefaultInvoker();
+	final Invoker invoker = new DefaultInvoker();
         final InvocationResult result = invoker.execute(request);
 
         if (result.getExitCode() != 0) {
