@@ -9,8 +9,7 @@ import org.apache.maven.shared.invoker.Invoker;
 import org.apache.maven.shared.invoker.MavenInvocationException;
 import org.apache.maven.shared.invoker.PrintStreamHandler;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.Arrays;
 import java.util.Properties;
 import java.io.ByteArrayOutputStream;
@@ -64,10 +63,12 @@ public class MvnCommands {
         return true;
     }
 
-    public static boolean runMvnInstallFromUpper(MavenProject project, boolean suppressOutput, String moduleName) throws MavenInvocationException {
+    public static boolean runMvnInstallFromUpper(MavenProject project, boolean suppressOutput, File baseDir, String moduleName) throws MavenInvocationException {
         // TODO: Maybe support custom command lines/options?
         final InvocationRequest request = new DefaultInvocationRequest();
-        request.setGoals(Arrays.asList("install -pl " + moduleName));
+        request.setGoals(Arrays.asList("install"));
+        request.setBaseDirectory(baseDir);
+        request.setBuilder(moduleName);
         request.setAlsoMake(true);
         request.setPomFile(project.getFile());
         request.setProperties(new Properties());
@@ -89,6 +90,7 @@ public class MvnCommands {
         PrintStream errorStream = new PrintStream(baosError);
         request.setErrorHandler(new PrintStreamHandler(errorStream, true));
 
+        System.out.println(request);
         final Invoker invoker = new DefaultInvoker();
         final InvocationResult result = invoker.execute(request);
 
