@@ -455,6 +455,7 @@ public class ParserMojo extends AbstractParserMojo {
             if (method != null) {
                 method.setStatic(true);
                 NodeList<AnnotationExpr> methodAnnotations = method.getAnnotations();
+                NodeList<AnnotationExpr> newAnnotations = new NodeList<>();
                 int i = 0;
                 for (i = 0; i < methodAnnotations.size(); i++) {
                     AnnotationExpr beforeMethodAnnotation = methodAnnotations.get(i);
@@ -462,12 +463,15 @@ public class ParserMojo extends AbstractParserMojo {
                         Class clazz = projectClassLoader().loadClass(afterAnnotation);
                         method.tryAddImportToParentCompilationUnit(clazz);
                         MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(JavaParser.parseName(clazz.getSimpleName()));
-                        method.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
-                        break;
+                        // method.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
+                        newAnnotations.add((AnnotationExpr) markerAnnotationExpr);
                     } else if (beforeMethodAnnotation.getName().toString().equals("Override")) {
-                        method.setAnnotation(i, null);
+                        continue;
+                    } else {
+                        newAnnotations.add(methodAnnotations.get(i));
                     }
                 }
+                method.setAnnotations(newAnnotations);
                 System.out.println(method);
                 fieldsSet.addAll(getRelatedFields(method, javaFile));
                 methodsSet.addAll(getRelatedMethods(method));
