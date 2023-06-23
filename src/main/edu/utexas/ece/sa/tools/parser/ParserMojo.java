@@ -252,11 +252,11 @@ public class ParserMojo extends AbstractParserMojo {
                 Files.createDirectories(ParserPathManager.cachePath());
             }
             final ErrorLogger logger = new ErrorLogger();
-            // loadTestRunners(logger, mavenProject);
-            final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
+            loadTestRunners(logger, mavenProject);
+            /* final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
             if (runnerOption.isDefined()) {
                 this.runner = runnerOption.get();
-            }
+            } */
             final List<String> tests = getTests(mavenProject, this.runner.framework());
             if (!Files.exists(ParserPathManager.originalOrderPath())) {
                 Files.write(ParserPathManager.originalOrderPath(), tests);
@@ -955,10 +955,17 @@ public class ParserMojo extends AbstractParserMojo {
         Files.copy(javaFile.path(), path, StandardCopyOption.REPLACE_EXISTING);
     }
 
-    private void backup1(final JavaFile javaFile, final String extensions) throws IOException {
+    /* private void backup1(final JavaFile javaFile, final String extensions) throws IOException {
         final Path path = ParserPathManager.backupPath1(javaFile.path(), extensions);
         Files.copy(javaFile.path(), path, StandardCopyOption.REPLACE_EXISTING);
+    } */
+
+    private void backup1(final JavaFile javaFile, final String extensions) throws IOException {
+        final Path path = ParserPathManager.backupPath1(javaFile.path(), extensions);
+        final Path path2 = ParserPathManager.backupPath(javaFile.path());
+        Files.copy(path2, path, StandardCopyOption.REPLACE_EXISTING);
     }
+
 
     private void restore(final JavaFile javaFile) throws IOException {
         final Path path = ParserPathManager.backupPath(javaFile.path());
