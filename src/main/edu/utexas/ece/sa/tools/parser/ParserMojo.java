@@ -284,7 +284,13 @@ public class ParserMojo extends AbstractParserMojo {
                 }
             }
             File upperDir = upperProject.getBasedir();
-            String moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
+            // String moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
+            String moduleName = ".";
+            if (baseDir.toString().equals(upperDir.toString())) {
+                moduleName = ".";
+            } else {
+                moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
+            }
             System.out.println("MODULE NAME: " + moduleName);
             // read the test class file one by one
             for (String testClass : testClasses) {
@@ -678,6 +684,16 @@ public class ParserMojo extends AbstractParserMojo {
                 break;
             }
         }
+        Set<String> newFieldsSet = new HashSet<>();
+        for (String fieldName : fieldsSet) {
+            for (JavaFile javaFile1 : javaFileList) {
+                FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
+                if (field != null) {
+                    newFieldsSet.addAll(getRelatedFields(field, javaFile1));
+                }
+            }
+        }
+        fieldsSet.addAll(newFieldsSet);
         for (String fieldName : fieldsSet) {
             for (JavaFile javaFile1 : javaFileList) {
                 FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
@@ -808,6 +824,56 @@ public class ParserMojo extends AbstractParserMojo {
             }
         }
         System.out.println(set);
+        return set;
+    }
+
+    protected Set<String> getRelatedFields(FieldDeclaration fd, JavaFile javaFile) {
+        Set<String> set = new HashSet<>();
+        Map<String, Range> variableNameMap = new HashMap<>();
+        Map<VariableDeclarator, Range> localMap = new HashMap<>();
+        List<Node> nodesList = new LinkedList<>();
+        System.out.println(set);
+        Queue<Node> nodes = new ArrayDeque<>();
+        nodes.add(fd);
+        while(!nodes.isEmpty()) {
+            Node node = nodes.peek();
+            if (node instanceof VariableDeclarationExpr) {
+                NodeList<VariableDeclarator> variableDeclarators = ((VariableDeclarationExpr) node).asVariableDeclarationExpr().getVariables();
+                for (VariableDeclarator variableDeclarator: variableDeclarators) {
+                    Node parentNodeForVD = variableDeclarator.getParentNode().get();
+                    while (true) {
+                        if (parentNodeForVD.getClass().getName().equals("com.github.javaparser.ast.stmt.BlockStmt")) {
+                            localMap.put(variableDeclarator, parentNodeForVD.getRange().get());
+                            break;
+                        }
+                        parentNodeForVD = parentNodeForVD.getParentNode().get();
+                    }
+                }
+            }
+            if (node.getChildNodes().size() == 1) {
+                if (node.getChildNodes().get(0).getClass().getName().equals("com.github.javaparser.ast.expr.SimpleName")) {
+                    Node potentialNode = node.getChildNodes().get(0);
+                    if (node.getClass().getName().equals("com.github.javaparser.ast.expr.NameExpr")) {
+                        String name = ((NameExpr) node).asNameExpr().getNameAsString();
+                        variableNameMap.put(name, potentialNode.getRange().get());
+                    }
+                }
+            }
+            if (node instanceof FieldAccessExpr) {
+                for (Node ni : node.getChildNodes()) {
+                    if (ni.getClass().getName().equals("com.github.javaparser.ast.expr.SimpleName")) {
+                        Node potentialNode = ni;
+                        String name = ((SimpleName) potentialNode).asString();
+                        variableNameMap.put(name, potentialNode.getRange().get());
+                    }
+                }
+            }
+            nodes.poll();
+            for (Node node1 : node.getChildNodes()) {
+                nodes.add(node1);
+                nodesList.add(node1);
+            }
+        }
         return set;
     }
 
