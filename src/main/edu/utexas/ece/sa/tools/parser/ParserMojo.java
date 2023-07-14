@@ -348,7 +348,8 @@ public class ParserMojo extends AbstractParserMojo {
                                 currentLevelClasses = upperLevelClassNames.getOrDefault(level, new HashSet<>());
                             }
                             updateJUnitTestFiles(javaFile);
-                            boolean result = false;
+                            // System.exit(0);
+			    boolean result = false;
                             System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
                             result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
                             System.out.println("MVN OUTPUT: " + result);
@@ -464,7 +465,7 @@ public class ParserMojo extends AbstractParserMojo {
                 method.setAnnotations(newAnnotations);
                 fieldsSet.addAll(getRelatedFields(method, javaFile, false));
                 methodsSet.addAll(getRelatedMethods(method));
-		        changeMethods(method, javaFile);
+		changeMethods(method, javaFile);
             }
         }
     }
@@ -645,7 +646,7 @@ public class ParserMojo extends AbstractParserMojo {
         }
         Set<String> processedMethods = new HashSet<>();
         while (true) {
-            int preSize = remainingMethodsSet.size();
+            Set<String> preSet = new HashSet<>(remainingMethodsSet);
             for (String methodName : remainingMethodsSet) {
                 if (processedMethods.contains(methodName)) {
                     continue;
@@ -670,7 +671,7 @@ public class ParserMojo extends AbstractParserMojo {
                             }
                             md.setAnnotations(newAnnotations);
                             additionalMethods.addAll(getRelatedMethods(md));
-                            fieldsSet.addAll(getRelatedFields(md, javaFile1, true));
+                            fieldsSet.addAll(getRelatedFields(md, javaFile1, false));
                             changeMethods(md, javaFile1);
 			}
                         remainingMethodsSet.addAll(additionalMethods);
@@ -679,8 +680,8 @@ public class ParserMojo extends AbstractParserMojo {
                     }
                 }
             }
-            int curSize = remainingMethodsSet.size();
-            if (preSize == curSize) {
+            Set<String> curSet = new HashSet<>(remainingMethodsSet);
+            if (preSet.size() == curSet.size() && preSet.containsAll(curSet)) {
                 break;
             }
         }
@@ -813,7 +814,7 @@ public class ParserMojo extends AbstractParserMojo {
                 if (node instanceof ThisExpr) {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
-                        parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+			parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
                     }
                 } else if (flag && node instanceof SuperExpr) {
                     if (node.getParentNode().isPresent()) {
@@ -832,25 +833,12 @@ public class ParserMojo extends AbstractParserMojo {
         Map<String, Range> variableNameMap = new HashMap<>();
         Map<VariableDeclarator, Range> localMap = new HashMap<>();
         List<Node> nodesList = new LinkedList<>();
-        System.out.println(set);
         Queue<Node> nodes = new ArrayDeque<>();
         nodes.add(fd);
         while(!nodes.isEmpty()) {
             Node node = nodes.peek();
-            if (node instanceof VariableDeclarationExpr) {
-                NodeList<VariableDeclarator> variableDeclarators = ((VariableDeclarationExpr) node).asVariableDeclarationExpr().getVariables();
-                for (VariableDeclarator variableDeclarator: variableDeclarators) {
-                    Node parentNodeForVD = variableDeclarator.getParentNode().get();
-                    while (true) {
-                        if (parentNodeForVD.getClass().getName().equals("com.github.javaparser.ast.stmt.BlockStmt")) {
-                            localMap.put(variableDeclarator, parentNodeForVD.getRange().get());
-                            break;
-                        }
-                        parentNodeForVD = parentNodeForVD.getParentNode().get();
-                    }
-                }
-            }
-            if (node.getChildNodes().size() == 1) {
+            // Assume there are no blocks inside each field declarations
+	    if (node.getChildNodes().size() == 1) {
                 if (node.getChildNodes().get(0).getClass().getName().equals("com.github.javaparser.ast.expr.SimpleName")) {
                     Node potentialNode = node.getChildNodes().get(0);
                     if (node.getClass().getName().equals("com.github.javaparser.ast.expr.NameExpr")) {
@@ -874,11 +862,15 @@ public class ParserMojo extends AbstractParserMojo {
                 nodesList.add(node1);
             }
         }
+	for (String variableName : variableNameMap.keySet()) {
+	    // Currently, there are no filters.
+            set.add(variableName);
+        }
         return set;
     }
 
     protected Set<String> getRelatedMethods(MethodDeclaration md) {
-        Set<String> set = new HashSet<>();
+	Set<String> set = new HashSet<>();
         for (Statement stmt : md.getBody().get().getStatements()) {
             Queue<Node> nodes = new ArrayDeque<>();
             nodes.add(stmt);
@@ -903,10 +895,14 @@ public class ParserMojo extends AbstractParserMojo {
             while(!nodes.isEmpty()) {
                 Node node = nodes.peek();
                 if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
-		            if (node.toString().equals("getClass()")) {
-			            Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
+   	            if (node.toString().equals("getClass()")) {
+ 	                Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()  + ".class"));
-		            }
+		    } else if (node.toString().endsWith(".getClass()")) {
+		        Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
+			String str = node.toString().replace(".getClass()", ".class");
+                        parentNode.replace(node, new NameExpr(str));
+		    }
                 }
                 nodes.poll();
                 for (Node node1 : node.getChildNodes()) {
