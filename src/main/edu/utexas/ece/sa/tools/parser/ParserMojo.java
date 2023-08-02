@@ -16,9 +16,6 @@ import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
-import edu.illinois.cs.dt.tools.runner.InstrumentingSmartRunner;
-
-import edu.illinois.cs.dt.tools.utility.ErrorLogger;
 import edu.illinois.cs.testrunner.configuration.Configuration;
 import edu.illinois.cs.testrunner.data.framework.TestFramework;
 import edu.illinois.cs.testrunner.data.results.TestResult;
@@ -26,11 +23,10 @@ import edu.illinois.cs.testrunner.data.results.TestRunResult;
 import edu.illinois.cs.testrunner.runner.Runner;
 import edu.illinois.cs.testrunner.runner.RunnerFactory;
 import edu.utexas.ece.sa.tools.mavenplugin.AbstractParserMojo;
-import edu.illinois.cs.dt.tools.utility.Logger;
-import edu.illinois.cs.dt.tools.utility.Level;
 
 import edu.illinois.cs.testrunner.testobjects.TestLocator;
 // import edu.utexas.ece.sa.tools.testobjects.TestLocator;
+import edu.utexas.ece.sa.tools.runner.InstrumentingSmartRunner;
 import edu.utexas.ece.sa.tools.utility.GetMavenTestOrder;
 import edu.utexas.ece.sa.tools.utility.MvnCommands;
 import edu.utexas.ece.sa.tools.utility.OperationTime;
@@ -41,7 +37,6 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
-import scala.Option;
 import scala.collection.JavaConverters;
 import scala.util.Try;
 
@@ -58,8 +53,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
-//import java.util.logging.Level;
-//import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 @Mojo(name = "parse", defaultPhase = LifecyclePhase.TEST, requiresDependencyResolution = ResolutionScope.TEST)
@@ -67,7 +60,7 @@ public class ParserMojo extends AbstractParserMojo {
     public static final String PATCH_LINE_SEP = "==========================";
 
     private static Map<Integer, List<String>> locateTestList = new HashMap<>();
-    private Runner runner;
+    private InstrumentingSmartRunner runner;
 
     private String testname;
 
@@ -108,12 +101,12 @@ public class ParserMojo extends AbstractParserMojo {
     private List<String> locateTests(MavenProject project, TestFramework testFramework) {
         int id = Objects.hash(project, testFramework);
         if (!locateTestList.containsKey(id)) {
-            Logger.getGlobal().log(Level.INFO, "Locating tests...");
+            System.out.println("Locating tests...");
             try {
 		            locateTestList.put(id, OperationTime.runOperation(() -> {
-                    return new ArrayList<String>(JavaConverters.bufferAsJavaList(TestLocator.tests(this.mavenProject, testFramework).toBuffer()));
+                    return new ArrayList<String>(JavaConverters.bufferAsJavaList(TestLocator.tests(mavenProject, testFramework).toBuffer()));
                 }, (tests, time) -> {
-                    Logger.getGlobal().log(Level.INFO, "Located " + tests.size() + " tests. Time taken: " + time.elapsedSeconds() + " seconds");
+                        System.out.println("Located " + tests.size() + " tests. Time taken: " + time.elapsedSeconds() + " seconds");
                     return tests;
                 }));
             } catch (Exception e) {
@@ -123,7 +116,7 @@ public class ParserMojo extends AbstractParserMojo {
         return locateTestList.get(id);
     }
 
-    protected void loadTestRunners(final ErrorLogger logger, final MavenProject mavenProject) throws IOException {
+    protected void loadTestRunners(final MavenProject mavenProject) throws IOException {
         // Currently there could two runners, one for JUnit 4 and one for JUnit 5
         // If the maven project has both JUnit 4 and JUnit 5 tests, two runners will
         // be returned
@@ -150,8 +143,7 @@ public class ParserMojo extends AbstractParserMojo {
                     } else {
                         errorMsg = "dt.detector.forceJUnit4 is true but no JUnit 4 runners found. Perhaps the project only contains JUnit 5 tests.";
                     }
-                    Logger.getGlobal().log(Level.INFO, errorMsg);
-                    logger.writeError(errorMsg);
+                    System.out.println(errorMsg);
                     return;
                 }
             } else {
@@ -166,8 +158,7 @@ public class ParserMojo extends AbstractParserMojo {
                             "This project contains both JUnit 4 and JUnit 5 tests, which currently"
                                     + " is not supported by iDFlakies";
                 }
-                Logger.getGlobal().log(Level.INFO, errorMsg);
-                logger.writeError(errorMsg);
+                System.out.println(errorMsg);
                 return;
             }
         }
@@ -209,7 +200,7 @@ public class ParserMojo extends AbstractParserMojo {
             TestFramework testFramework,
             boolean ignoreExisting) throws IOException {
         if (!Files.exists(ParserPathManager.path(Paths.get("original-order"))) || ignoreExisting) {
-            Logger.getGlobal().log(Level.INFO, "Getting original order by parsing logs. ignoreExisting set to: " + ignoreExisting);
+            System.out.println("Getting original order by parsing logs. ignoreExisting set to: " + ignoreExisting);
 
             try {
                 final Path surefireReportsPath = Paths.get(mavenProject.getBuild().getDirectory()).resolve("surefire-reports");
@@ -251,8 +242,7 @@ public class ParserMojo extends AbstractParserMojo {
             if (!Files.exists(ParserPathManager.cachePath())) {
                 Files.createDirectories(ParserPathManager.cachePath());
             }
-            final ErrorLogger logger = new ErrorLogger();
-            loadTestRunners(logger, mavenProject);
+            loadTestRunners(mavenProject);
             /* final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
             if (runnerOption.isDefined()) {
                 this.runner = runnerOption.get();
@@ -291,13 +281,11 @@ public class ParserMojo extends AbstractParserMojo {
             } else {
                 moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
             }
-            System.out.println("MODULE NAME: " + moduleName);
             // read the test class file one by one
             for (String testClass : testClasses) {
 		        if (!testClass.equals(testname)) {
                     continue;
                 }
-                System.out.println("TEST CLASS: " + testClass);
                 for (final Path file : testFiles) {
                     if (Files.exists(file) && FilenameUtils.isExtension(file.getFileName().toString(), "java")) {
                         Set<FieldDeclaration> globalFields = new HashSet<>();
@@ -306,6 +294,11 @@ public class ParserMojo extends AbstractParserMojo {
                         if (testClass.endsWith("." + fileShortName)) {
                             final JavaFile javaFile = JavaFile.loadFile(file, classpath(), ParserPathManager.compiledPath(file).getParent(), fileShortName, "");
                             backup(javaFile);
+                            Path path = ParserPathManager.backupPath(javaFile.path());
+                            final JavaFile backupJavaFile = JavaFile.loadFile(path, classpath(),
+                                    ParserPathManager.compiledPath(path).getParent(), fileShortName, "");
+
+                            System.out.println("JAVA FILE NAME: " + javaFile.path());
                             Map<Integer, Set<String>> upperLevelClassNames = new HashMap<>();
                             final Map<Integer, Set<JavaFile>> upperLevelFiles = new HashMap<>();
                             int level = 0;
@@ -349,7 +342,7 @@ public class ParserMojo extends AbstractParserMojo {
                             }
                             updateJUnitTestFiles(javaFile);
                             // System.exit(0);
-			    boolean result = false;
+			                boolean result = false;
                             System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
                             result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
                             System.out.println("MVN OUTPUT: " + result);
@@ -365,11 +358,17 @@ public class ParserMojo extends AbstractParserMojo {
                             Map<String, TestResult> map = testRunResultTry.get().results();
                             System.out.println(map);
                             Set<String> failedTests = new HashSet<>();
-                            Set<String> backupedFailedTests = new HashSet<>();
                             obtainLastestTestResults(map, failedTests);
-                            backupedFailedTests.addAll(failedTests);
+                            for (String failedTest : failedTests) {
+                                MethodDeclaration md = javaFile.findMethodDeclaration(failedTest);
+                                javaFile.removeMethod(md);
+                            }
+                            javaFile.writeAndReloadCompilationUnit();
                             int index = 0;
                             while (!failedTests.isEmpty()) {
+                                System.out.println("FILEPATH: " + file);
+                                // file refers to the current file path, replace the current path *.java to *New<d>.java.
+                                // d here refers to the digit
                                 Path path1 = ParserPathManager.backupPath1(file, "New" + index + ".java");
                                 backup1(javaFile, "New" + index + ".java");
                                 final JavaFile javaFile1 = JavaFile.loadFile(path1, classpath(), ParserPathManager.compiledPath(path1).getParent(), fileShortName, "New" + index);
@@ -385,15 +384,16 @@ public class ParserMojo extends AbstractParserMojo {
                                     MethodDeclaration newMD = javaFile1.addMethod(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     failedTestsList.add(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
                                     System.out.println(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
-				                    MethodDeclaration md = javaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
+				                    MethodDeclaration md = backupJavaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
 				                    newMD.setThrownExceptions(md.getThrownExceptions());
                                     newMD.setBody(md.getBody().get());
                                     newMD.setAnnotations(md.getAnnotations());
                                     javaFile1.writeAndReloadCompilationUnit();
                                 }
                                 result = false;
+                                updateJUnitTestFiles(javaFile1);
                                 System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                                result = MvnCommands.runMvnInstallFromUpper(upperProject, false, upperDir, moduleName);
+                                result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir, moduleName);
                                 System.out.println("MVN OUTPUT: " + result);
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
                                 System.out.println("NEW RUNNING RESULTS: " + innerMap);
@@ -406,11 +406,6 @@ public class ParserMojo extends AbstractParserMojo {
                                 javaFile1.writeAndReloadCompilationUnit();
                                 index ++;
                             }
-                            for (String backupedFailedTest : backupedFailedTests) {
-                                MethodDeclaration md = javaFile.findMethodDeclaration(backupedFailedTest);
-                                javaFile.removeMethod(md);
-                            }
-                            javaFile.writeAndReloadCompilationUnit();
                         }
                     }
                 }
@@ -734,10 +729,10 @@ public class ParserMojo extends AbstractParserMojo {
         for (String key : map.keySet()) {
             TestResult testResult = map.get(key);
             if (testResult.result().toString().equals("FAILURE")) {
-                failedTests.add(key);;
+                failedTests.add(key);
             }
             if (testResult.result().toString().equals("ERROR")) {
-                failedTests.add(key);;
+                failedTests.add(key);
             }
         }
     }
@@ -824,7 +819,6 @@ public class ParserMojo extends AbstractParserMojo {
                 }
             }
         }
-        System.out.println(set);
         return set;
     }
 
@@ -1025,6 +1019,7 @@ public class ParserMojo extends AbstractParserMojo {
     private void backup1(final JavaFile javaFile, final String extensions) throws IOException {
         final Path path = ParserPathManager.backupPath1(javaFile.path(), extensions);
         final Path path2 = ParserPathManager.backupPath(javaFile.path());
+        // copy the backup file(ends with *orig) to path2
         Files.copy(path2, path, StandardCopyOption.REPLACE_EXISTING);
     }
 

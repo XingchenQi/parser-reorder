@@ -1,10 +1,10 @@
 package edu.utexas.ece.sa.tools.mavenplugin;
 
-import edu.illinois.cs.dt.tools.utility.PathManager;
 import edu.illinois.cs.testrunner.configuration.ConfigProps;
 import edu.illinois.cs.testrunner.configuration.Configuration;
 
 import edu.utexas.ece.sa.tools.detection.MavenDetectorPathManager;
+import edu.utexas.ece.sa.tools.utility.PathManager;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugins.annotations.Execute;
 import org.apache.maven.plugins.annotations.LifecyclePhase;

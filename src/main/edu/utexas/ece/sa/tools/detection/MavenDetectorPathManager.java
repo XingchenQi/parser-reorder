@@ -1,8 +1,8 @@
 package edu.utexas.ece.sa.tools.detection;
 
 import com.google.common.base.Preconditions;
-import edu.illinois.cs.dt.tools.utility.PathManager;
 import edu.illinois.cs.testrunner.configuration.Configuration;
+import edu.utexas.ece.sa.tools.utility.PathManager;
 import org.apache.maven.project.MavenProject;
 
 import java.io.IOException;
