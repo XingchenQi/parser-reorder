@@ -415,12 +415,12 @@ public class ParserMojo extends AbstractParserMojo {
                     }
                 }
             }
+            System.out.println("SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS!!!");
         } catch (IOException | DependencyResolutionRequiredException exception) {
             exception.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS!!!");
     }
 
     protected void updateJUnitTestFiles(JavaFile javaFile) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
