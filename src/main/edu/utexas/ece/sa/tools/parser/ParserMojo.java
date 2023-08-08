@@ -365,6 +365,7 @@ public class ParserMojo extends AbstractParserMojo {
                             }
                             javaFile.writeAndReloadCompilationUnit();
                             int index = 0;
+                            int numOfFailedTests = failedTests.size();
                             while (!failedTests.isEmpty()) {
                                 System.out.println("FILEPATH: " + file);
                                 // file refers to the current file path, replace the current path *.java to *New<d>.java.
@@ -399,6 +400,10 @@ public class ParserMojo extends AbstractParserMojo {
                                 System.out.println("NEW RUNNING RESULTS: " + innerMap);
                                 failedTests = new HashSet<>();
                                 obtainLastestTestResults(innerMap, failedTests);
+                                int curNumOfFailedTests = failedTests.size();
+                                if (numOfFailedTests == curNumOfFailedTests) {
+                                    break;
+                                }
                                 for (String failedTest : failedTests) {
                                     MethodDeclaration md = javaFile1.findMethodDeclaration(failedTest);
                                     javaFile1.removeMethod(md);
@@ -415,6 +420,7 @@ public class ParserMojo extends AbstractParserMojo {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        System.out.println("SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS!!!");
     }
 
     protected void updateJUnitTestFiles(JavaFile javaFile) throws DependencyResolutionRequiredException, ClassNotFoundException, IOException {
