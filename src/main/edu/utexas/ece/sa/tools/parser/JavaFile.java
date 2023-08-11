@@ -346,6 +346,15 @@ public class JavaFile {
         return fieldNameLists;
     }
 
+    public String getPackageName() {
+        final Optional<PackageDeclaration> packageDec = compilationUnit.getPackageDeclaration();
+
+        Preconditions.checkArgument(packageDec.isPresent(), "No package declaration found for class");
+
+        return String.format("%s",
+                packageDec.get().getName().toString());
+    }
+
     private String getFullyQualifiedMethodName(MethodDeclaration method, ClassOrInterfaceDeclaration classDec) {
         final Optional<PackageDeclaration> packageDec = compilationUnit.getPackageDeclaration();
 
@@ -366,15 +375,18 @@ public class JavaFile {
     public String removeMethod(final MethodDeclaration method) {
         for (final ClassOrInterfaceDeclaration classDeclaration : classList) {
             final MethodRemoverVisitor remover = new MethodRemoverVisitor(method);
-            classDeclaration.accept(remover, null);
+            try {
+                classDeclaration.accept(remover, null);
 
-            final Optional<PackageDeclaration> packageDec = compilationUnit.getPackageDeclaration();
+                final Optional<PackageDeclaration> packageDec = compilationUnit.getPackageDeclaration();
 
-            if (remover.succeeded()) {
-                return createRemovedMethodString(packageDec.map(PackageDeclaration::getNameAsString).orElse(""), classDeclaration, method);
+                if (remover.succeeded()) {
+                    return createRemovedMethodString(packageDec.map(PackageDeclaration::getNameAsString).orElse(""), classDeclaration, method);
+                }
+            } catch (Exception exception) {
+                exception.printStackTrace();
             }
         }
-
         return null;
     }
 
