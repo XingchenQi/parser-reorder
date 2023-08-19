@@ -302,6 +302,7 @@ public class ParserMojo extends AbstractParserMojo {
             } else {
                 moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
             }
+            boolean exist = false;
             // read the test class file one by one
             HashMap<String,List<String>> splitTests=new HashMap<>();
             for (String testClass : testClasses) {
@@ -315,11 +316,14 @@ public class ParserMojo extends AbstractParserMojo {
                         String fileShortName = fileName.substring(0, fileName.lastIndexOf("."));
                         if (testClass.endsWith("." + fileShortName)) {
                             final JavaFile javaFile = JavaFile.loadFile(file, classpath(), ParserPathManager.compiledPath(file).getParent(), fileShortName, "");
+                            if (!testname.equals(javaFile.getPackageName() + "." + fileShortName)) {
+                                continue;
+                            }
+                            exist = true;
                             backup(javaFile);
                             Path path = ParserPathManager.backupPath(javaFile.path());
                             final JavaFile backupJavaFile = JavaFile.loadFile(path, classpath(),
                                     ParserPathManager.compiledPath(path).getParent(), fileShortName, "");
-
                             System.out.println("JAVA FILE NAME: " + javaFile.path());
                             Map<Integer, Set<String>> upperLevelClassNames = new HashMap<>();
                             final Map<Integer, Set<JavaFile>> upperLevelFiles = new HashMap<>();
@@ -382,7 +386,12 @@ public class ParserMojo extends AbstractParserMojo {
                             Set<String> failedTests = new HashSet<>();
                             obtainLastestTestResults(map, failedTests);
                             for (String failedTest : failedTests) {
-                                MethodDeclaration md = javaFile.findMethodDeclaration(failedTest);
+                                String formalFailedTest = failedTest;
+                                if (failedTest.contains("#") || failedTest.contains("()")) {
+                                    formalFailedTest = formalFailedTest.replace("#", ".");
+                                    formalFailedTest = formalFailedTest.replace("()", "");
+                                }
+                                MethodDeclaration md = javaFile.findMethodDeclaration(formalFailedTest);
                                 javaFile.removeMethod(md);
                                 remainTests.remove(failedTest);
                             }
@@ -410,11 +419,21 @@ public class ParserMojo extends AbstractParserMojo {
                                 System.out.println("---------------FAILED TESTS TO BE SPLIT---------------");
                                 for (String failedTest : failedTests) {
                                     String longFailedTestClassName = testClass + "New" + index;
-                                    String shortFailedTestName = failedTest.substring(failedTest.lastIndexOf(".") + 1);
-                                    MethodDeclaration newMD = javaFile1.addMethod(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
-                                    failedTestsList.add(longFailedTestClassName + this.runner.framework().getDelimiter() + shortFailedTestName);
-                                    System.out.println(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
-				                    MethodDeclaration md = backupJavaFile.findMethodDeclaration(testClass + this.runner.framework().getDelimiter() + shortFailedTestName);
+                                    String shortFailedTestName = failedTest.substring(
+                                            failedTest.lastIndexOf(this.runner.framework().getDelimiter()) + 1);
+                                    String formalShortFailedTestName = shortFailedTestName;
+                                    if (formalShortFailedTestName.contains("()")) {
+                                        formalShortFailedTestName =
+                                                formalShortFailedTestName.replace("()", "");
+                                    }
+                                    MethodDeclaration newMD = javaFile1.addMethod(
+                                            longFailedTestClassName + "." + formalShortFailedTestName);
+                                    failedTestsList.add(longFailedTestClassName +
+                                            this.runner.framework().getDelimiter() + shortFailedTestName);
+                                    System.out.println("failed test: " + longFailedTestClassName +
+                                            this.runner.framework().getDelimiter() + shortFailedTestName);
+				                    MethodDeclaration md = backupJavaFile.findMethodDeclaration(
+				                            testClass + "." + formalShortFailedTestName);
 				                    newMD.setThrownExceptions(md.getThrownExceptions());
                                     newMD.setBody(md.getBody().get());
                                     newMD.setAnnotations(md.getAnnotations());
@@ -432,10 +451,16 @@ public class ParserMojo extends AbstractParserMojo {
                                 obtainLastestTestResults(innerMap, failedTests);
                                 int curNumOfFailedTests = failedTests.size();
                                 if (numOfFailedTests == curNumOfFailedTests) {
-                                    break;
+                                    System.err.println("ENCOUNTER INFINITE LOOP");
+                                    System.exit(1);
                                 }
                                 for (String failedTest : failedTests) {
-                                    MethodDeclaration md = javaFile1.findMethodDeclaration(failedTest);
+                                    String formalFailedTests = failedTest;
+                                    if (failedTest.contains("#") || failedTest.contains("()")) {
+                                        formalFailedTests = formalFailedTests.replace("#", ".");
+                                        formalFailedTests = formalFailedTests.replace("()", "");
+                                    }
+                                    MethodDeclaration md = javaFile1.findMethodDeclaration(formalFailedTests);
                                     javaFile1.removeMethod(md);
                                     curFailedTests.remove(failedTest);
                                 }
@@ -449,8 +474,9 @@ public class ParserMojo extends AbstractParserMojo {
                     }
                 }
             }
-            System.out.println("SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS!!!");
-
+            if (exist) {
+                System.out.println(testname + " SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS");
+            }
             checkTestsOrder(splitTests);
         } catch (IOException | DependencyResolutionRequiredException exception) {
             exception.printStackTrace();
@@ -757,6 +783,10 @@ public class ParserMojo extends AbstractParserMojo {
             if (testResult.result().toString().equals("ERROR")) {
                 failedTests.add(key);
             }
+            if (testResult.result().toString().equals("SKIPPED")) {
+                System.out.println("TESTS SKIPPED!!!");
+                System.exit(0);
+            }
         }
     }
 
@@ -832,7 +862,7 @@ public class ParserMojo extends AbstractParserMojo {
                 if (node instanceof ThisExpr) {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
-			parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+                        parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
                     }
                 } else if (flag && node instanceof SuperExpr) {
                     if (node.getParentNode().isPresent()) {
@@ -912,14 +942,18 @@ public class ParserMojo extends AbstractParserMojo {
             while(!nodes.isEmpty()) {
                 Node node = nodes.peek();
                 if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
-   	            if (node.toString().equals("getClass()")) {
- 	                Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
+   	                if (node.toString().equals("getClass()")) {
+ 	                    Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()  + ".class"));
-		    } else if (node.toString().endsWith(".getClass()")) {
-		        Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
-			String str = node.toString().replace(".getClass()", ".class");
+                    } else if (node.toString().endsWith(".getClass()")) {
+                        Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
+                        for (Node child : ((MethodCallExpr) node).asMethodCallExpr().getChildNodes()) {
+                            System.out.println(child.toString());
+                            System.out.println(child.getClass());// com.github.javaparser.ast.expr.NameExpr
+                        }
+                        String str = node.toString().replace(".getClass()", ".class");
                         parentNode.replace(node, new NameExpr(str));
-		    }
+                    }
                 }
                 nodes.poll();
                 for (Node node1 : node.getChildNodes()) {
