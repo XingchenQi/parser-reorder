@@ -232,6 +232,27 @@ public class ParserMojo extends AbstractParserMojo {
     protected void superExecute() {
         super.execute();
     }
+    
+    private void checkTestsOrder(HashMap<String,List<String>> splitTests){
+        System.console().printf("print tests\n");
+
+        splitTests.forEach((key, value) -> System.out.println(key + " " + value));
+        List<String> allTests=new ArrayList<>();
+        for(String newClass:splitTests.keySet()){
+            List<String> testsInOrder=splitTests.get(newClass);
+            allTests.addAll(testsInOrder);
+            System.out.println(testsInOrder);
+            Map<String, TestResult> innerMap = this.runner.runList(testsInOrder).get().results();
+            System.out.println("RUNNING RESULTS WITH SAME ORDER: " + innerMap);
+        }
+        System.out.println("GET ALL TESTS: " + allTests);
+        Map<String, TestResult> newResultsInOrder = this.runner.runList(allTests).get().results();
+        System.out.println("RUNNING RESULTS WITH ALL TESTS IN ORDER: " + newResultsInOrder);
+        Collections.shuffle(allTests);
+        System.out.println("GET ALL TESTS: " + allTests);
+        Map<String, TestResult> newResultsRandom = this.runner.runList(allTests).get().results();
+        System.out.println("RUNNING RESULTS WITH ALL TESTS SHUFFLE: " + newResultsRandom);
+    }
 
     @Override
     public void execute() {
@@ -282,6 +303,7 @@ public class ParserMojo extends AbstractParserMojo {
                 moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
             }
             // read the test class file one by one
+            HashMap<String,List<String>> splitTests=new HashMap<>();
             for (String testClass : testClasses) {
 		        if (!testClass.equals(testname)) {
                     continue;
@@ -354,7 +376,7 @@ public class ParserMojo extends AbstractParserMojo {
                                 }
                             }
                             Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
-
+                            List<String> remainTests=testsForNewClass;
                             Map<String, TestResult> map = testRunResultTry.get().results();
                             System.out.println(map);
                             Set<String> failedTests = new HashSet<>();
@@ -362,7 +384,14 @@ public class ParserMojo extends AbstractParserMojo {
                             for (String failedTest : failedTests) {
                                 MethodDeclaration md = javaFile.findMethodDeclaration(failedTest);
                                 javaFile.removeMethod(md);
+                                remainTests.remove(failedTest);
                             }
+//                            System.console().printf("SPLIT TESTS ");
+//                            System.console().printf(testClass+" ");
+//                            for(String t:remainTests){
+//                                System.console().printf(t);
+//                            }
+                            splitTests.put(testClass,remainTests);
                             javaFile.writeAndReloadCompilationUnit();
                             int index = 0;
                             int numOfFailedTests = failedTests.size();
@@ -391,6 +420,7 @@ public class ParserMojo extends AbstractParserMojo {
                                     newMD.setAnnotations(md.getAnnotations());
                                     javaFile1.writeAndReloadCompilationUnit();
                                 }
+                                List<String> curFailedTests=new ArrayList<>(failedTestsList);
                                 result = false;
                                 updateJUnitTestFiles(javaFile1);
                                 System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
@@ -407,15 +437,21 @@ public class ParserMojo extends AbstractParserMojo {
                                 for (String failedTest : failedTests) {
                                     MethodDeclaration md = javaFile1.findMethodDeclaration(failedTest);
                                     javaFile1.removeMethod(md);
+                                    curFailedTests.remove(failedTest);
                                 }
+                                splitTests.put(testClass + "New" + index,curFailedTests);
                                 javaFile1.writeAndReloadCompilationUnit();
                                 index ++;
+
                             }
+
                         }
                     }
                 }
             }
             System.out.println("SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS!!!");
+
+            checkTestsOrder(splitTests);
         } catch (IOException | DependencyResolutionRequiredException exception) {
             exception.printStackTrace();
         } catch (Exception e) {
