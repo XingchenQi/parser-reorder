@@ -73,6 +73,9 @@ public class ParserMojo extends AbstractParserMojo {
     // Get all java source files
     private static List<Path> javaFiles;
 
+    //Total test order shuffle times
+    private static Integer shuffleTimes=5;
+
     // useful for modules with JUnit 4 tests but depend on something in JUnit 5
     private final boolean forceJUnit4 = Configuration.config().getProperty("dt.detector.forceJUnit4", false);
 
@@ -245,13 +248,24 @@ public class ParserMojo extends AbstractParserMojo {
             Map<String, TestResult> innerMap = this.runner.runList(testsInOrder).get().results();
             System.out.println("RUNNING RESULTS WITH SAME ORDER: " + innerMap);
         }
-        System.out.println("GET ALL TESTS: " + allTests);
+        System.out.println("ALL TESTS ORDER: " + allTests);
         Map<String, TestResult> newResultsInOrder = this.runner.runList(allTests).get().results();
         System.out.println("RUNNING RESULTS WITH ALL TESTS IN ORDER: " + newResultsInOrder);
-        Collections.shuffle(allTests);
-        System.out.println("GET ALL TESTS: " + allTests);
-        Map<String, TestResult> newResultsRandom = this.runner.runList(allTests).get().results();
-        System.out.println("RUNNING RESULTS WITH ALL TESTS SHUFFLE: " + newResultsRandom);
+        for(int i=0;i<shuffleTimes;i++){
+            Collections.shuffle(allTests);
+            System.out.println("ALL TESTS ORDER: " + allTests);
+            Map<String, TestResult> newResultsRandom = this.runner.runList(allTests).get().results();
+            System.out.println("RUNNING RESULTS WITH ALL TESTS SHUFFLE: " + newResultsRandom);
+            for (String key : newResultsRandom.keySet()) {
+                TestResult testResult = newResultsRandom.get(key);
+                if (testResult.result().toString().equals("FAILURE")) {
+                    System.out.println("FOUND FAILURE IN CURRENT ORDER! "+key);
+                }
+                if (testResult.result().toString().equals("ERROR")) {
+                    System.out.println("FOUND ERROR IN CURRENT ORDER! "+key);
+                }
+            }
+        }
     }
 
     @Override
