@@ -452,8 +452,9 @@ public class ParserMojo extends AbstractParserMojo {
                                 int curNumOfFailedTests = failedTests.size();
                                 if (numOfFailedTests == curNumOfFailedTests) {
                                     System.err.println("ENCOUNTER INFINITE LOOP");
-                                    System.exit(1);
+                                    System.exit(0);
                                 }
+                                numOfFailedTests = curNumOfFailedTests;
                                 for (String failedTest : failedTests) {
                                     String formalFailedTests = failedTest;
                                     if (failedTest.contains("#") || failedTest.contains("()")) {
@@ -945,7 +946,7 @@ public class ParserMojo extends AbstractParserMojo {
    	                if (node.toString().equals("getClass()")) {
  	                    Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()  + ".class"));
-                    } else if (node.toString().endsWith(".getClass()")) {
+                    } /* else if (node.toString().endsWith(".getClass()")) {
                         Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
                         for (Node child : ((MethodCallExpr) node).asMethodCallExpr().getChildNodes()) {
                             System.out.println(child.toString());
@@ -953,7 +954,7 @@ public class ParserMojo extends AbstractParserMojo {
                         }
                         String str = node.toString().replace(".getClass()", ".class");
                         parentNode.replace(node, new NameExpr(str));
-                    }
+                    } */
                 }
                 nodes.poll();
                 for (Node node1 : node.getChildNodes()) {
