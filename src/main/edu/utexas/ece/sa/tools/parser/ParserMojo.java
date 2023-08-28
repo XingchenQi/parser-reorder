@@ -2,13 +2,10 @@ package edu.utexas.ece.sa.tools.parser;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.Range;
-import com.github.javaparser.ast.ImportDeclaration;
-import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.nodeTypes.NodeWithExtends;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
@@ -398,7 +395,7 @@ public class ParserMojo extends AbstractParserMojo {
                             Map<String, TestResult> map = testRunResultTry.get().results();
                             System.out.println(map);
                             Set<String> failedTests = new HashSet<>();
-                            obtainLastestTestResults(map, failedTests);
+                            obtainLastTestResults(map, failedTests);
                             for (String failedTest : failedTests) {
                                 String formalFailedTest = failedTest;
                                 if (failedTest.contains("#") || failedTest.contains("()")) {
@@ -418,13 +415,17 @@ public class ParserMojo extends AbstractParserMojo {
                             javaFile.writeAndReloadCompilationUnit();
                             int index = 0;
                             int numOfFailedTests = failedTests.size();
+                            if (numOfFailedTests == testsForNewClass.size()) {
+                                System.out.println("ALL TESTS FAIL AT THE BEGINNING!!!");
+                                System.exit(0);
+                            }
                             while (!failedTests.isEmpty()) {
                                 System.out.println("FILEPATH: " + file);
                                 // file refers to the current file path, replace the current path *.java to *New<d>.java.
                                 // d here refers to the digit
                                 Path path1 = ParserPathManager.backupPath1(file, "New" + index + ".java");
                                 backup1(javaFile, "New" + index + ".java");
-                                final JavaFile javaFile1 = JavaFile.loadFile(path1, classpath(), ParserPathManager.compiledPath(path1).getParent(), fileShortName, "New" + index);
+                                JavaFile javaFile1 = JavaFile.loadFile(path1, classpath(), ParserPathManager.compiledPath(path1).getParent(), fileShortName, "New" + index);
                                 for (MethodDeclaration md : javaFile1.findMethodsWithAnnotation("Test")) {
                                     javaFile1.removeMethod(md);
                                 }
@@ -455,6 +456,11 @@ public class ParserMojo extends AbstractParserMojo {
                                 }
                                 List<String> curFailedTests=new ArrayList<>(failedTestsList);
                                 result = false;
+                                // reload the java file before splitting again
+                                JavaFile javaFile1Before =
+                                        JavaFile.loadFile(path1, classpath(),
+                                                ParserPathManager.compiledPath(path1).getParent(),
+                                                fileShortName, "New" + index);
                                 updateJUnitTestFiles(javaFile1);
                                 System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
                                 result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir, moduleName);
@@ -462,11 +468,25 @@ public class ParserMojo extends AbstractParserMojo {
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
                                 System.out.println("NEW RUNNING RESULTS: " + innerMap);
                                 failedTests = new HashSet<>();
-                                obtainLastestTestResults(innerMap, failedTests);
+                                obtainLastTestResults(innerMap, failedTests);
                                 int curNumOfFailedTests = failedTests.size();
                                 if (numOfFailedTests == curNumOfFailedTests) {
-                                    System.err.println("ENCOUNTER INFINITE LOOP");
-                                    System.exit(0);
+                                    System.err.println("TESTS ALWAYS FAIL! RESTORE THE ORIGINAL FILE!");
+                                    javaFile1Before.writeAndReloadCompilationUnit();
+                                    javaFile1 = javaFile1Before;
+                                    javaFile1.writeAndReloadCompilationUnit();
+                                    System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+                                    result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir, moduleName);
+                                    System.out.println("MVN OUTPUT: " + result);
+                                    innerMap = this.runner.runList(failedTestsList).get().results();
+                                    System.out.println("NEW RUNNING RESULTS: " + innerMap);
+                                    failedTests = new HashSet<>();
+                                    obtainLastTestResults(innerMap, failedTests);
+                                    curNumOfFailedTests = failedTests.size();
+                                    if (curNumOfFailedTests == numOfFailedTests) {
+                                        System.out.println("ENCOUNTER INFINITE LOOP!!!");
+                                        System.exit(0);
+                                    }
                                 }
                                 numOfFailedTests = curNumOfFailedTests;
                                 for (String failedTest : failedTests) {
@@ -789,7 +809,7 @@ public class ParserMojo extends AbstractParserMojo {
         return set;
     }
 
-    private void obtainLastestTestResults(Map<String, TestResult> map, Set<String> failedTests) {
+    private void obtainLastTestResults(Map<String, TestResult> map, Set<String> failedTests) {
         for (String key : map.keySet()) {
             TestResult testResult = map.get(key);
             if (testResult.result().toString().equals("FAILURE")) {
@@ -838,7 +858,9 @@ public class ParserMojo extends AbstractParserMojo {
                         Node potentialNode = node.getChildNodes().get(0);
                         if (node.getClass().getName().equals("com.github.javaparser.ast.expr.NameExpr")) {
                             String name = ((NameExpr) node).asNameExpr().getNameAsString();
-                            variableNameMap.put(name, potentialNode.getRange().get());
+                            if (potentialNode.getRange().isPresent()) {
+                                variableNameMap.put(name, potentialNode.getRange().get());
+                            }
                         }
                     }
                 }
@@ -877,7 +899,16 @@ public class ParserMojo extends AbstractParserMojo {
                 if (node instanceof ThisExpr) {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
-                        parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+                        System.out.println(parentNode);
+                        if (parentNode.toString().equals("MockitoAnnotations.initMocks(this)")) {
+                            parentNode.replace(node, new NameExpr("new " +
+                                    javaFile.getCurCI().getName().toString() + "()"));
+                        } else if (parentNode.toString().equals("this.getClass()")) {
+                            parentNode.replace(node, new NameExpr(
+                                    javaFile.getCurCI().getName().toString() + ".class"));
+                        } else {
+                            parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+                        }
                     }
                 } else if (flag && node instanceof SuperExpr) {
                     if (node.getParentNode().isPresent()) {
@@ -958,6 +989,7 @@ public class ParserMojo extends AbstractParserMojo {
                 Node node = nodes.peek();
                 if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
    	                if (node.toString().equals("getClass()")) {
+   	                    System.out.println(node);
  	                    Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()  + ".class"));
                     } /* else if (node.toString().endsWith(".getClass()")) {

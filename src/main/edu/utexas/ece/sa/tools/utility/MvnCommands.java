@@ -80,6 +80,7 @@ public class MvnCommands {
         request.getProperties().setProperty("maven.javadoc.skip", "true");
         request.getProperties().setProperty("maven.source.skip", "true");
         request.getProperties().setProperty("gpg.skip", "true");
+        request.getProperties().setProperty("findbugs.skip", "true");
 
         request.setUpdateSnapshots(false);
 
@@ -90,7 +91,7 @@ public class MvnCommands {
         PrintStream errorStream = new PrintStream(baosError);
         request.setErrorHandler(new PrintStreamHandler(errorStream, true));
 
-	final Invoker invoker = new DefaultInvoker();
+	    final Invoker invoker = new DefaultInvoker();
         final InvocationResult result = invoker.execute(request);
 
         if (result.getExitCode() != 0) {
