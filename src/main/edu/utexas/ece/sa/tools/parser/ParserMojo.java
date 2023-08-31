@@ -249,18 +249,35 @@ public class ParserMojo extends AbstractParserMojo {
         Map<String, TestResult> newResultsInOrder = this.runner.runList(allTests).get().results();
         System.out.println("RUNNING RESULTS WITH ALL TESTS IN ORDER: " + newResultsInOrder);
         for(int i=0;i<shuffleTimes;i++){
-            Collections.shuffle(allTests);
+            // Generate a seed and print it
+            long generatedSeed = new Random().nextLong();
+            System.out.println("Generated seed: " + generatedSeed);
+
+            // Use the generated seed for reproducibility
+            Random random = new Random(generatedSeed);
+
+            Collections.shuffle(allTests,random);
             System.out.println("ALL TESTS ORDER: " + allTests);
             Map<String, TestResult> newResultsRandom = this.runner.runList(allTests).get().results();
             System.out.println("RUNNING RESULTS WITH ALL TESTS SHUFFLE: " + newResultsRandom);
+            boolean foundFail=false;
             for (String key : newResultsRandom.keySet()) {
                 TestResult testResult = newResultsRandom.get(key);
                 if (testResult.result().toString().equals("FAILURE")) {
                     System.out.println("FOUND FAILURE IN CURRENT ORDER! "+key);
+                    System.out.println("Please remain previous order.");
+                    foundFail=true;
+                    break;
                 }
                 if (testResult.result().toString().equals("ERROR")) {
                     System.out.println("FOUND ERROR IN CURRENT ORDER! "+key);
+                    System.out.println("Please remain previous order.");
+                    foundFail=true;
+                    break;
                 }
+            }
+            if(foundFail){
+                break;
             }
         }
     }
