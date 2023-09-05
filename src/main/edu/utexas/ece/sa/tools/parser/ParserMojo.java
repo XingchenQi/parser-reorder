@@ -288,7 +288,7 @@ public class ParserMojo extends AbstractParserMojo {
     }
     
     private void checkTestsOrder(HashMap<String,List<String>> splitTests){
-        System.console().printf("=====START CHECKING TESTS ORDER AFTER SPLIT=====\n");
+        System.out.println("=====START CHECKING TESTS ORDER AFTER SPLIT=====\n");
 
         splitTests.forEach((key, value) -> System.out.println(key + " " + value));
         List<String> allTests=new ArrayList<>();
