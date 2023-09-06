@@ -116,7 +116,7 @@ public class ParserMojo extends AbstractParserMojo {
         return locateTestList.get(id);
     }
 
-    protected void loadTestRunners(final MavenProject mavenProject) throws IOException {
+    protected void loadTestRunners(final MavenProject mavenProject, String testname) throws IOException {
         // Currently there could two runners, one for JUnit 4 and one for JUnit 5
         // If the maven project has both JUnit 4 and JUnit 5 tests, two runners will
         // be returned
@@ -153,7 +153,40 @@ public class ParserMojo extends AbstractParserMojo {
                             "Module is not using a supported test framework (probably not JUnit), " +
                                     "or there is no test.";
                 } else {
-                    // more than one runner, currently is not supported.
+                    // more than one runner, figure out what type the desired test is by reflecting, then use corresponding runner.
+                    try {
+                        String framework = "";
+                        Class testClass = projectClassLoader().loadClass(testname);
+                        Method[] declaredMethods = testClass.getDeclaredMethods();
+                        Method[] methods = testClass.getMethods();
+                        Method[] allMethods = Arrays.copyOf(declaredMethods, declaredMethods.length + methods.length);
+                        System.arraycopy(methods, 0, allMethods, declaredMethods.length, methods.length);
+                        // check annotations on all methods to determine which framework to use
+                        for (Method meth : allMethods) {
+                            for (Annotation a : meth.getDeclaredAnnotations()) {
+                                if (a.toString().equals("@org.junit.Test()")) {
+                                    framework = "JUnit";
+                                    break;
+                                } else if (a.toString().equals("@org.junit.jupiter.api.Test()")) {
+                                    framework = "JUnit5";
+                                    break;
+                                }
+                            }
+                            if (!framework.equals("")) {
+                                break;
+                            }
+                        }
+                        // identified the framework, so search through runners finding the corresponding one
+                        for (Runner r : runners) {
+                            if (r.framework().toString().equals(framework)) {
+                                this.runner = InstrumentingSmartRunner.fromRunner(r, mavenProject.getBasedir());
+                                return;
+                            }
+                        }
+                    } catch (Exception ex) {
+                        System.out.println("Caught exception when trying to determine best framework: " + ex);
+                    }
+
                     errorMsg =
                             "This project contains both JUnit 4 and JUnit 5 tests, which currently"
                                     + " is not supported by iDFlakies";
@@ -369,7 +402,7 @@ public class ParserMojo extends AbstractParserMojo {
             if (!Files.exists(ParserPathManager.cachePath())) {
                 Files.createDirectories(ParserPathManager.cachePath());
             }
-            loadTestRunners(mavenProject);
+            loadTestRunners(mavenProject, testname);
             /* final Option<Runner> runnerOption = RunnerFactory.from(mavenProject);
             if (runnerOption.isDefined()) {
                 this.runner = runnerOption.get();
