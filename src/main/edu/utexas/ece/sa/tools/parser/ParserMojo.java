@@ -519,7 +519,7 @@ public class ParserMojo extends AbstractParserMojo {
                                 }
                             }
                             Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
-                            List<String> remainTests=testsForNewClass;
+                            List<String> remainTests=new LinkedList<>(testsForNewClass);
                             Map<String, TestResult> map = testRunResultTry.get().results();
                             System.out.println(map);
                             Set<String> failedTests = new HashSet<>();
