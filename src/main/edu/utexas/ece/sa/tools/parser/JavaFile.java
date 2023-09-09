@@ -165,9 +165,13 @@ public class JavaFile {
         Files.write(path(), compilationUnit.toString().getBytes());
     }
 
-    public void writeAndReloadCompilationUnit() throws IOException {
-        writeFile();
-        loadClassList(simpleName, extensions);
+    public void writeAndReloadCompilationUnit() {
+        try {
+            writeFile();
+            loadClassList(simpleName, extensions);
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        }
     }
 
     public MethodDeclaration findMethodAt(final long line) {
