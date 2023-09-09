@@ -19,6 +19,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.shared.invoker.MavenInvocationException;
 import scala.collection.JavaConverters;
 import scala.util.Try;
 
@@ -38,25 +39,42 @@ import java.util.stream.Stream;
 
 @Mojo(name = "parse", defaultPhase = LifecyclePhase.TEST, requiresDependencyResolution = ResolutionScope.TEST)
 public class ParserMojo extends AbstractParserMojo {
-    public static final String PATCH_LINE_SEP = "==========================";
-
     private static final Map<Integer, List<String>> locateTestList = new HashMap<>();
 
     private InstrumentingSmartRunner runner;
 
-    private String testname;
+    private String testName;
 
     // obtain all the test classes
-    private static Set<String> testClasses;
+    private Set<String> testClasses;
 
     // Get all test source files
-    private static List<Path> testFiles;
-
-    // Get all java source files
-    private static List<Path> javaFiles;
+    private List<Path> testFiles;
 
     // useful for modules with JUnit 4 tests but depend on something in JUnit 5
     private final boolean forceJUnit4 = Configuration.config().getProperty("dt.detector.forceJUnit4", false);
+
+    private Path file;
+
+    private String fileShortName;
+
+    private JavaFile javaFile;
+
+    private static int index = 0;
+
+    private String testClass;
+
+    private JavaFile backupJavaFile;
+
+    private MavenProject upperProject;
+
+    private String moduleName;
+
+    private File upperDir;
+
+    private List<String> tests;
+
+    private Map<String, List<String>> curTests;
 
     private String classpath() throws DependencyResolutionRequiredException {
         final List<String> elements = new ArrayList<>(mavenProject.getCompileClasspathElements());
@@ -258,21 +276,21 @@ public class ParserMojo extends AbstractParserMojo {
     @Override
     public void execute() {
         superExecute();
-        refactor();
+        searching();
     }
 
-    protected void refactor() {
+    protected void searching() {
         try {
-            testname = Configuration.config().getProperty("parser.testname", "");
+            testName = Configuration.config().getProperty("parser.testname", "");
             // the cachePath for Parser here is ".dtfixingtools".
             if (!Files.exists(ParserPathManager.cachePath())) {
                 Files.createDirectories(ParserPathManager.cachePath());
             }
             // load the test runners (codes fetched from iDFlakies)
-            loadTestRunners(mavenProject, testname);
+            loadTestRunners(mavenProject, testName);
 
             //  get the full list of tests for this maven project
-            final List<String> tests = getTests(mavenProject, this.runner.framework());
+            tests = getTests(mavenProject, this.runner.framework());
             // the original order path is located at ".dtfixingtools".
             if (!Files.exists(ParserPathManager.originalOrderPath())) {
                 Files.write(ParserPathManager.originalOrderPath(), tests);
@@ -281,15 +299,13 @@ public class ParserMojo extends AbstractParserMojo {
             testClasses = getTestClasses(tests);
             // Get all test source files
             testFiles = testSources();
-            // Get all java source files
-            javaFiles = javaSources();
 
-            if (testname.equals("")) {
+            if (testName.equals("")) {
                 System.out.println("Please provide test name!");
                 return;
             }
 
-            MavenProject upperProject = mavenProject;
+            upperProject = mavenProject;
             File baseDir = mavenProject.getBasedir();
             if (upperProject.hasParent()) {
                 while (upperProject.hasParent()) {
@@ -299,8 +315,8 @@ public class ParserMojo extends AbstractParserMojo {
                     upperProject = upperProject.getParent();
                 }
             }
-            File upperDir = upperProject.getBasedir();
-            String moduleName = ".";
+            upperDir = upperProject.getBasedir();
+            moduleName = ".";
             if (baseDir.toString().equals(upperDir.toString())) {
                 moduleName = ".";
             } else {
@@ -308,177 +324,199 @@ public class ParserMojo extends AbstractParserMojo {
             }
 
             boolean exist = false;
-            // read the test class file one by one
-            Map<String, List<String>> splitTests = new HashMap<>();
             for (String testClass : testClasses) {
-                if (!testClass.equals(testname)) {
+                if (!testClass.equals(testName)) {
                     continue;
                 }
                 for (final Path file : testFiles) {
                     if (Files.exists(file) && FilenameUtils.isExtension(
                             file.getFileName().toString(), "java")) {
                         String fileName = file.getFileName().toString();
-                        String fileShortName = fileName.substring(0, fileName.lastIndexOf("."));
+                        this.file = file;
+                        this.testClass = testClass;
+                        fileShortName = fileName.substring(0, fileName.lastIndexOf("."));
                         if (testClass.endsWith("." + fileShortName)) {
-                            final JavaFile javaFile = JavaFile.loadFile(file, classpath(),
+                            javaFile = JavaFile.loadFile(file, classpath(),
                                     ParserPathManager.compiledPath(file).getParent(), fileShortName, "");
-                            if (!testname.equals(javaFile.getPackageName() + "." + fileShortName)) {
+                            if (!testName.equals(javaFile.getPackageName() + "." + fileShortName)) {
                                 continue;
                             }
                             exist = true;
-                            backup(javaFile);
-                            Path path = ParserPathManager.backupPath(javaFile.path());
-                            final JavaFile backupJavaFile = JavaFile.loadFile(path, classpath(),
-                                    ParserPathManager.compiledPath(path).getParent(), fileShortName, "");
-                            System.out.println("JAVA FILE NAME: " + javaFile.path());
-                            Refactor refactor = new Refactor(mavenProject, classpath(), projectClassLoader(), this.runner);
-                            refactor.updateJUnitTestFiles(javaFile);
-                            System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                            boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, false,
-                                    upperDir, moduleName);
-                            System.out.println("MVN OUTPUT: " + result);
-                            List<String> testsForNewClass = new LinkedList<>();
-                            for (String testForNewClass : tests) {
-                                String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf(
-                                        this.runner.framework().getDelimiter()));
-                                if (testClassForNewClass.equals(testClass)) {
-                                    testsForNewClass.add(testForNewClass);
-                                }
-                            }
-                            loadTestRunners(mavenProject, testname);
-                            Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
-                            List<String> remainTests = new LinkedList<>(testsForNewClass);
-                            Map<String, TestResult> map = testRunResultTry.get().results();
-                            System.out.println(map);
-                            Set<String> failedTests = new HashSet<>();
-                            Utils.obtainLastTestResults(map, failedTests);
-                            if (failedTests.size() == 0) {
-                                break;
-                            }
-                            List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(testsForNewClass,
-                                    failedTests.size(), runner);
-                            map = this.runner.runList(bestOrder).get().results();
-                            failedTests = new HashSet<>();
-                            Utils.obtainLastTestResults(map, failedTests);
-                            for (String failedTest : failedTests) {
-                                String formalFailedTest = failedTest;
-                                if (failedTest.contains("#") || failedTest.contains("()")) {
-                                    formalFailedTest = formalFailedTest.replace("#", ".");
-                                    formalFailedTest = formalFailedTest.replace("()", "");
-                                }
-                                MethodDeclaration md = javaFile.findMethodDeclaration(formalFailedTest);
-                                javaFile.removeMethod(md);
-                                remainTests.remove(failedTest);
-                            }
-                            splitTests.put(testClass, remainTests);
-                            javaFile.writeAndReloadCompilationUnit();
-                            int index = 0;
-                            int numOfFailedTests = failedTests.size();
-                            if (numOfFailedTests == testsForNewClass.size()) {
-                                System.out.println("ALL TESTS FAIL AT THE BEGINNING!!!");
-                                System.exit(0);
-                            }
-                            while (!failedTests.isEmpty()) {
-                                System.out.println("FILEPATH: " + file);
-                                // file refers to the current file path, replace the current path *.java to *New<d>.java.
-                                // d here refers to the digit
-                                Path path1 = ParserPathManager.backupPath1(file, "New" + index + ".java");
-                                Utils.backup1(javaFile, "New" + index + ".java");
-                                JavaFile javaFile1 = JavaFile.loadFile(path1, classpath(),
-                                        ParserPathManager.compiledPath(path1).getParent(), fileShortName,
-                                        "New" + index);
-                                for (MethodDeclaration md : javaFile1.findMethodsWithAnnotation("Test")) {
-                                    javaFile1.removeMethod(md);
-                                }
-                                javaFile1.writeAndReloadCompilationUnit();
-                                List<String> failedTestsList = new LinkedList<>();
-                                System.out.println("---------------FAILED TESTS TO BE SPLIT---------------");
-                                for (String failedTest : failedTests) {
-                                    String longFailedTestClassName = testClass + "New" + index;
-                                    String shortFailedTestName = failedTest.substring(
-                                            failedTest.lastIndexOf(this.runner.framework().getDelimiter()) + 1);
-                                    String formalShortFailedTestName = shortFailedTestName;
-                                    if (formalShortFailedTestName.contains("()")) {
-                                        formalShortFailedTestName =
-                                                formalShortFailedTestName.replace("()", "");
-                                    }
-                                    MethodDeclaration newMD = javaFile1.addMethod(
-                                            longFailedTestClassName + "." + formalShortFailedTestName);
-                                    failedTestsList.add(longFailedTestClassName +
-                                            this.runner.framework().getDelimiter() + shortFailedTestName);
-                                    System.out.println("failed test: " + longFailedTestClassName +
-                                            this.runner.framework().getDelimiter() + shortFailedTestName);
-				                    MethodDeclaration md = backupJavaFile.findMethodDeclaration(
-				                            testClass + "." + formalShortFailedTestName);
-				                    newMD.setThrownExceptions(md.getThrownExceptions());
-                                    newMD.setBody(md.getBody().get());
-                                    newMD.setAnnotations(md.getAnnotations());
-                                    javaFile1.writeAndReloadCompilationUnit();
-                                }
-                                List<String> curFailedTests = new ArrayList<>(failedTestsList);
-                                // reload the java file before splitting again
-                                JavaFile javaFile1Before =
-                                        JavaFile.loadFile(path1, classpath(),
-                                                ParserPathManager.compiledPath(path1).getParent(),
-                                                fileShortName, "New" + index);
-                                refactor.updateJUnitTestFiles(javaFile1);
-                                System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                                result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir,
-                                        moduleName);
-                                System.out.println("MVN OUTPUT: " + result);
-                                loadTestRunners(mavenProject, testname);
-                                Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
-                                System.out.println("NEW RUNNING RESULTS: " + innerMap);
-                                failedTests = new HashSet<>();
-                                Utils.obtainLastTestResults(innerMap, failedTests);
-                                int curNumOfFailedTests = failedTests.size();
-                                if (numOfFailedTests == curNumOfFailedTests) {
-                                    System.err.println("TESTS ALWAYS FAIL! RESTORE THE ORIGINAL FILE!");
-                                    javaFile1Before.writeAndReloadCompilationUnit();
-                                    javaFile1 = javaFile1Before;
-                                    javaFile1.writeAndReloadCompilationUnit();
-                                    System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
-                                    result = MvnCommands.runMvnInstallFromUpper(upperProject,
-                                            true, upperDir, moduleName);
-                                    System.out.println("MVN OUTPUT: " + result);
-                                    loadTestRunners(mavenProject, testname);
-                                    innerMap = this.runner.runList(failedTestsList).get().results();
-                                    System.out.println("NEW RUNNING RESULTS: " + innerMap);
-                                    failedTests = new HashSet<>();
-                                    Utils.obtainLastTestResults(innerMap, failedTests);
-                                    curNumOfFailedTests = failedTests.size();
-                                    if (curNumOfFailedTests == numOfFailedTests) {
-                                        System.out.println("ENCOUNTER INFINITE LOOP!!!");
-                                        System.exit(0);
-                                    }
-                                }
-                                numOfFailedTests = curNumOfFailedTests;
-                                for (String failedTest : failedTests) {
-                                    String formalFailedTests = failedTest;
-                                    if (failedTest.contains("#") || failedTest.contains("()")) {
-                                        formalFailedTests = formalFailedTests.replace("#", ".");
-                                        formalFailedTests = formalFailedTests.replace("()", "");
-                                    }
-                                    MethodDeclaration md = javaFile1.findMethodDeclaration(formalFailedTests);
-                                    javaFile1.removeMethod(md);
-                                    curFailedTests.remove(failedTest);
-                                }
-                                splitTests.put(testClass + "New" + index, curFailedTests);
-                                javaFile1.writeAndReloadCompilationUnit();
-                                index ++;
-                            }
+                            parse();
                         }
                     }
                 }
             }
             if (exist) {
-                System.out.println(testname + " SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS");
+                System.out.println(testName + " SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS");
             }
-            ShuffleOrdersUtils.checkTestsOrder(splitTests, runner);
+            ShuffleOrdersUtils.checkTestsOrder(curTests, runner);
         } catch (IOException | DependencyResolutionRequiredException exception) {
             exception.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    protected void parse() {
+        try {
+            backup(javaFile);
+            Path path = ParserPathManager.backupPath(javaFile.path());
+            backupJavaFile = JavaFile.loadFile(path, classpath(),
+                    ParserPathManager.compiledPath(path).getParent(), fileShortName, "");
+            System.out.println("JAVA FILE NAME: " + javaFile.path());
+            Refactor refactor = new Refactor(mavenProject, classpath(), projectClassLoader(), this.runner);
+            refactor.updateJUnitTestFiles(javaFile);
+            System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+            boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, false,
+                    upperDir, moduleName);
+            System.out.println("MVN OUTPUT: " + result);
+            List<String> testsForNewClass = new LinkedList<>();
+            for (String testForNewClass : tests) {
+                String testClassForNewClass = testForNewClass.substring(0, testForNewClass.lastIndexOf(
+                        this.runner.framework().getDelimiter()));
+                if (testClassForNewClass.equals(testClass)) {
+                    testsForNewClass.add(testForNewClass);
+                }
+            }
+            loadTestRunners(mavenProject, testName);
+            Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
+            List<String> remainTests = new LinkedList<>(testsForNewClass);
+            Map<String, TestResult> map = testRunResultTry.get().results();
+            System.out.println(map);
+            Set<String> failedTests = new HashSet<>();
+            Utils.obtainLastTestResults(map, failedTests);
+            if (failedTests.size() == 0) {
+                return;
+            }
+            List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(testsForNewClass,
+                    failedTests.size(), runner);
+            map = this.runner.runList(bestOrder).get().results();
+            failedTests = new HashSet<>();
+            Utils.obtainLastTestResults(map, failedTests);
+            for (String failedTest : failedTests) {
+                String formalFailedTest = failedTest;
+                if (failedTest.contains("#") || failedTest.contains("()")) {
+                    formalFailedTest = formalFailedTest.replace("#", ".");
+                    formalFailedTest = formalFailedTest.replace("()", "");
+                }
+                MethodDeclaration md = javaFile.findMethodDeclaration(formalFailedTest);
+                javaFile.removeMethod(md);
+                remainTests.remove(failedTest);
+            }
+            // read the test class file one by one
+            curTests = new HashMap<>();
+            curTests.put(testClass, remainTests);
+            javaFile.writeAndReloadCompilationUnit();
+            index = 0;
+            int numOfFailedTests = failedTests.size();
+            if (numOfFailedTests == testsForNewClass.size()) {
+                System.out.println("ALL TESTS FAIL AT THE BEGINNING!!!");
+                System.exit(0);
+            }
+            split(failedTests);
+        } catch (IOException | DependencyResolutionRequiredException
+                | ClassNotFoundException | MavenInvocationException ioException) {
+            ioException.printStackTrace();
+        }
+    }
+
+    protected void split(Set<String> failedTests) {
+        try {
+            int numOfFailedTests = failedTests.size();
+            while (!failedTests.isEmpty()) {
+                System.out.println("FILEPATH: " + file);
+                // file refers to the current file path, replace the current path *.java to *New<d>.java.
+                // d here refers to the digit
+                Path path1 = ParserPathManager.backupPath1(file, "New" + index + ".java");
+                Utils.backup1(javaFile, "New" + index + ".java");
+                JavaFile javaFile1 = JavaFile.loadFile(path1, classpath(),
+                        ParserPathManager.compiledPath(path1).getParent(), fileShortName,
+                        "New" + index);
+                for (MethodDeclaration md : javaFile1.findMethodsWithAnnotation("Test")) {
+                    javaFile1.removeMethod(md);
+                }
+                javaFile1.writeAndReloadCompilationUnit();
+                List<String> failedTestsList = new LinkedList<>();
+                System.out.println("---------------FAILED TESTS TO BE SPLIT---------------");
+                for (String failedTest : failedTests) {
+                    String longFailedTestClassName = testClass + "New" + index;
+                    String shortFailedTestName = failedTest.substring(
+                            failedTest.lastIndexOf(this.runner.framework().getDelimiter()) + 1);
+                    String formalShortFailedTestName = shortFailedTestName;
+                    if (formalShortFailedTestName.contains("()")) {
+                        formalShortFailedTestName =
+                                formalShortFailedTestName.replace("()", "");
+                    }
+                    MethodDeclaration newMD = javaFile1.addMethod(
+                            longFailedTestClassName + "." + formalShortFailedTestName);
+                    failedTestsList.add(longFailedTestClassName +
+                            this.runner.framework().getDelimiter() + shortFailedTestName);
+                    System.out.println("failed test: " + longFailedTestClassName +
+                            this.runner.framework().getDelimiter() + shortFailedTestName);
+                    MethodDeclaration md = backupJavaFile.findMethodDeclaration(
+                            testClass + "." + formalShortFailedTestName);
+                    newMD.setThrownExceptions(md.getThrownExceptions());
+                    newMD.setBody(md.getBody().get());
+                    newMD.setAnnotations(md.getAnnotations());
+                    javaFile1.writeAndReloadCompilationUnit();
+                }
+                List<String> curFailedTests = new ArrayList<>(failedTestsList);
+                // reload the java file before splitting again
+                JavaFile javaFile1Before =
+                        JavaFile.loadFile(path1, classpath(),
+                                ParserPathManager.compiledPath(path1).getParent(),
+                                fileShortName, "New" + index);
+                Refactor refactor = new Refactor(mavenProject, classpath(), projectClassLoader(), this.runner);
+                refactor.updateJUnitTestFiles(javaFile1);
+                System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+                boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir,
+                        moduleName);
+                System.out.println("MVN OUTPUT: " + result);
+                loadTestRunners(mavenProject, testName);
+                Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
+                System.out.println("NEW RUNNING RESULTS: " + innerMap);
+                failedTests = new HashSet<>();
+                Utils.obtainLastTestResults(innerMap, failedTests);
+                int curNumOfFailedTests = failedTests.size();
+                if (numOfFailedTests == curNumOfFailedTests) {
+                    System.err.println("TESTS ALWAYS FAIL! RESTORE THE ORIGINAL FILE!");
+                    javaFile1Before.writeAndReloadCompilationUnit();
+                    javaFile1 = javaFile1Before;
+                    javaFile1.writeAndReloadCompilationUnit();
+                    System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
+                    result = MvnCommands.runMvnInstallFromUpper(upperProject,
+                            true, upperDir, moduleName);
+                    System.out.println("MVN OUTPUT: " + result);
+                    loadTestRunners(mavenProject, testName);
+                    innerMap = this.runner.runList(failedTestsList).get().results();
+                    System.out.println("NEW RUNNING RESULTS: " + innerMap);
+                    failedTests = new HashSet<>();
+                    Utils.obtainLastTestResults(innerMap, failedTests);
+                    curNumOfFailedTests = failedTests.size();
+                    if (curNumOfFailedTests == numOfFailedTests) {
+                        System.out.println("ENCOUNTER INFINITE LOOP!!!");
+                        System.exit(0);
+                    }
+                }
+                numOfFailedTests = curNumOfFailedTests;
+                for (String failedTest : failedTests) {
+                    String formalFailedTests = failedTest;
+                    if (failedTest.contains("#") || failedTest.contains("()")) {
+                        formalFailedTests = formalFailedTests.replace("#", ".");
+                        formalFailedTests = formalFailedTests.replace("()", "");
+                    }
+                    MethodDeclaration md = javaFile1.findMethodDeclaration(formalFailedTests);
+                    javaFile1.removeMethod(md);
+                    curFailedTests.remove(failedTest);
+                }
+                curTests.put(testClass + "New" + index, curFailedTests);
+                javaFile1.writeAndReloadCompilationUnit();
+                index++;
+            }
+        } catch (IOException | MavenInvocationException |
+                DependencyResolutionRequiredException | ClassNotFoundException exception) {
+            exception.printStackTrace();
         }
     }
 
@@ -503,7 +541,7 @@ public class ParserMojo extends AbstractParserMojo {
         return testFiles;
     }
 
-    private List<Path> javaSources() {
+    /* private List<Path> javaSources() {
         final List<Path> javaFiles = new ArrayList<>();
         try (final Stream<Path> paths = Files.walk(Paths.get(mavenProject.getBuild().getSourceDirectory()))) {
             paths.filter(Files::isRegularFile)
@@ -511,7 +549,7 @@ public class ParserMojo extends AbstractParserMojo {
         } catch (IOException IOE) {
 	}
         return javaFiles;
-    }
+    } */
 
     private void backup(final JavaFile javaFile) throws IOException {
         final Path path = ParserPathManager.backupPath(javaFile.path());

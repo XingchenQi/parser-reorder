@@ -54,6 +54,7 @@ public class ShuffleOrdersUtils {
                 }
                 if (testResult.result().toString().equals("SKIPPED")) {
                     skipped = true;
+                    break;
                 }
             }
             if (skipped) {

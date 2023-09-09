@@ -570,7 +570,6 @@ public class Refactor {
                 }
             }
         }
-        return;
     }
 
 
