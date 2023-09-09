@@ -387,6 +387,8 @@ public class ParserMojo extends AbstractParserMojo {
             Set<String> failedTests = new HashSet<>();
             Utils.obtainLastTestResults(map, failedTests);
             if (failedTests.size() == 0) {
+                curTests = new HashMap<>();
+                curTests.put(testClass, testsForNewClass);
                 return;
             }
             List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(testsForNewClass,
