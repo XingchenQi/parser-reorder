@@ -55,9 +55,6 @@ public class ParserMojo extends AbstractParserMojo {
     // Get all java source files
     private static List<Path> javaFiles;
 
-    // Total test order shuffle times
-    private static final Integer shuffleTimes = 5;
-
     // useful for modules with JUnit 4 tests but depend on something in JUnit 5
     private final boolean forceJUnit4 = Configuration.config().getProperty("dt.detector.forceJUnit4", false);
 
@@ -258,129 +255,6 @@ public class ParserMojo extends AbstractParserMojo {
         super.execute();
     }
 
-    private void shuffleAllTests(List<String> originalTests,Integer threshold){
-        List<String> newTests=new LinkedList<>(originalTests);
-        List<String> bestOrder=new LinkedList<>(originalTests);
-        Set<List<String>> setOfLists = new HashSet<>();
-        setOfLists.add(new LinkedList<>(originalTests));
-        boolean hasBetterOrder=false;
-        for(int i=0;i<shuffleTimes;i++){
-            // Generate a seed and print it
-            long generatedSeed = new Random().nextLong();
-            System.out.println("Generated seed: " + generatedSeed);
-
-            // Use the generated seed for reproducibility
-            Random random = new Random(generatedSeed);
-
-            Collections.shuffle(newTests,random);
-            if(setOfLists.contains(newTests)){
-                System.out.println("CURRENT TESTS ORDER EXISTS, SKIPPING.....");
-                continue;
-            }
-            setOfLists.add(new LinkedList<>(newTests));
-            System.out.println("NEW TESTS ORDER: " + newTests);
-            Map<String, TestResult> newResultsRandom = this.runner.runList(newTests).get().results();
-            System.out.println("RUNNING RESULTS WITH NEW ORDER: " + newResultsRandom);
-            Integer failedCnt=0;
-            for (String key : newResultsRandom.keySet()) {
-                TestResult testResult = newResultsRandom.get(key);
-                if (testResult.result().toString().equals("FAILURE")) {
-                    failedCnt++;
-                }
-                if (testResult.result().toString().equals("ERROR")) {
-                    failedCnt++;
-                }
-                if (testResult.result().toString().equals("SKIPPED")) {
-                    System.out.println("TESTS SKIPPED!!!");
-                    continue;
-                }
-            }
-            if(failedCnt<threshold){
-                hasBetterOrder=true;
-                bestOrder=new LinkedList<>(newTests);
-                System.out.println("FOUND BETTER ORDER WITH MORE PASSES!");
-                System.out.println("NEW TESTS ORDER: " + newTests);
-                threshold=failedCnt;
-            }
-        }
-        if(hasBetterOrder){
-            System.out.println("THERE IS A BETTER ORDER THAN ORIGINAL!");
-        }else{
-            System.out.println("NO BETTER ORDER THAN ORIGINAL!");
-        }
-        System.out.println("THE BEST ORDER IN THIS CLASS IS: ");
-        System.out.println(bestOrder);
-    }
-    
-    private void checkTestsOrder(Map<String,List<String>> splitTests){
-        System.out.println("=====START CHECKING TESTS ORDER AFTER SPLIT=====\n");
-
-        splitTests.forEach((key, value) -> System.out.println(key + " " + value));
-        List<String> allTests=new ArrayList<>();
-        List<String> allClasses=new ArrayList<>();
-        for(String newClass:splitTests.keySet()){
-            allClasses.add(newClass);
-            List<String> testsInOrder=splitTests.get(newClass);
-            allTests.addAll(testsInOrder);
-        }
-        HashSet<List<String>> allOrders=new HashSet<>();
-        allOrders.add(new ArrayList<>(allTests));
-        System.out.println("ALL TESTS ORDER: " + allTests);
-        Map<String, TestResult> newResultsInOrder = this.runner.runList(allTests).get().results();
-        System.out.println("RUNNING RESULTS WITH ALL TESTS IN ABOVE ORDER: " + newResultsInOrder);
-        boolean foundFail=false;
-        for(int i=0;i<shuffleTimes;i++){
-            // Generate a seed and print it
-            long generatedSeed = new Random().nextLong();
-            System.out.println("Generated seed: " + generatedSeed);
-
-            // Use the generated seed for reproducibility
-            Random random = new Random(generatedSeed);
-
-            Collections.shuffle(allClasses,random);
-
-            System.out.println("NEW CLASSES ORDER: " + allClasses);
-            for(int j=0;j<shuffleTimes;j++){
-                List<String> gatherAllTests=new ArrayList<>();
-                for(String curClass:allClasses){
-                    List<String> testsByClass=splitTests.get(curClass);
-                    Collections.shuffle(testsByClass,random);
-                    gatherAllTests.addAll(testsByClass);
-                }
-                if(allOrders.contains(gatherAllTests)){
-                    System.out.println("CURRENT TESTS ORDER EXISTS, SKIPPING.....");
-                    continue;
-                }
-                allOrders.add(gatherAllTests);
-                System.out.println("NEW TESTS ORDER: " + gatherAllTests);
-                Map<String, TestResult> newResultsRandom = this.runner.runList(gatherAllTests).get().results();
-                System.out.println("RUNNING RESULTS WITH ALL TESTS SHUFFLE: " + newResultsRandom);
-
-                for (String key : newResultsRandom.keySet()) {
-                    TestResult testResult = newResultsRandom.get(key);
-                    if (testResult.result().toString().equals("FAILURE")) {
-                        System.out.println("FOUND FAILURE IN CURRENT ORDER! "+key);
-                        foundFail=true;
-                        break;
-                    }
-                    if (testResult.result().toString().equals("ERROR")) {
-                        System.out.println("FOUND ERROR IN CURRENT ORDER! "+key);
-                        foundFail=true;
-                        break;
-                    }
-                }
-                if(foundFail){
-                    System.out.println("==========FOUND FAILURES/ERRORS IN CURRENT ABOVE ORDER! " +
-                            "PLEASE REMAIN THE ORIGINAL ORDER!==========");
-                    break;
-                }
-            }
-            if(foundFail){
-                break;
-            }
-        }
-    }
-
     @Override
     public void execute() {
         superExecute();
@@ -471,13 +345,21 @@ public class ParserMojo extends AbstractParserMojo {
                                     testsForNewClass.add(testForNewClass);
                                 }
                             }
+                            loadTestRunners(mavenProject, testname);
                             Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
                             List<String> remainTests = new LinkedList<>(testsForNewClass);
                             Map<String, TestResult> map = testRunResultTry.get().results();
                             System.out.println(map);
                             Set<String> failedTests = new HashSet<>();
                             Utils.obtainLastTestResults(map, failedTests);
-                            shuffleAllTests(testsForNewClass,failedTests.size());
+                            if (failedTests.size() == 0) {
+                                break;
+                            }
+                            List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(testsForNewClass,
+                                    failedTests.size(), runner);
+                            map = this.runner.runList(bestOrder).get().results();
+                            failedTests = new HashSet<>();
+                            Utils.obtainLastTestResults(map, failedTests);
                             for (String failedTest : failedTests) {
                                 String formalFailedTest = failedTest;
                                 if (failedTest.contains("#") || failedTest.contains("()")) {
@@ -496,8 +378,6 @@ public class ParserMojo extends AbstractParserMojo {
                                 System.out.println("ALL TESTS FAIL AT THE BEGINNING!!!");
                                 System.exit(0);
                             }
-                            FilesToSplit filesToSplit = new FilesToSplit();
-                            filesToSplit.split(splitTests);
                             while (!failedTests.isEmpty()) {
                                 System.out.println("FILEPATH: " + file);
                                 // file refers to the current file path, replace the current path *.java to *New<d>.java.
@@ -546,6 +426,7 @@ public class ParserMojo extends AbstractParserMojo {
                                 result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir,
                                         moduleName);
                                 System.out.println("MVN OUTPUT: " + result);
+                                loadTestRunners(mavenProject, testname);
                                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
                                 System.out.println("NEW RUNNING RESULTS: " + innerMap);
                                 failedTests = new HashSet<>();
@@ -560,6 +441,7 @@ public class ParserMojo extends AbstractParserMojo {
                                     result = MvnCommands.runMvnInstallFromUpper(upperProject,
                                             true, upperDir, moduleName);
                                     System.out.println("MVN OUTPUT: " + result);
+                                    loadTestRunners(mavenProject, testname);
                                     innerMap = this.runner.runList(failedTestsList).get().results();
                                     System.out.println("NEW RUNNING RESULTS: " + innerMap);
                                     failedTests = new HashSet<>();
@@ -592,7 +474,7 @@ public class ParserMojo extends AbstractParserMojo {
             if (exist) {
                 System.out.println(testname + " SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS");
             }
-            checkTestsOrder(splitTests);
+            ShuffleOrdersUtils.checkTestsOrder(splitTests, runner);
         } catch (IOException | DependencyResolutionRequiredException exception) {
             exception.printStackTrace();
         } catch (Exception e) {
