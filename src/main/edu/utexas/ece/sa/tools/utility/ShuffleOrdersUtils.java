@@ -17,9 +17,9 @@ public class ShuffleOrdersUtils {
 
         int size = order.size();
         if (size == 1) {
-            shuffleTimes = 1;
+            shuffleTimes = 0;
         } else if (size == 2) {
-            shuffleTimes = 2;
+            shuffleTimes = 1;
         }
 
         boolean hasBetterOrder = false;
@@ -35,7 +35,6 @@ public class ShuffleOrdersUtils {
             Collections.shuffle(order, random);
             if (orders.contains(order)) {
                 System.out.println("CURRENT TESTS ORDER EXISTS, SKIPPING.....");
-                i -= 1;
                 continue;
             }
             i++;

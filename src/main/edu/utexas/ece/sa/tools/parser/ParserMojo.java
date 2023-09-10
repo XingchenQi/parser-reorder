@@ -379,7 +379,7 @@ public class ParserMojo extends AbstractParserMojo {
                     testsForNewClass.add(testForNewClass);
                 }
             }
-            loadTestRunners(mavenProject, testName);
+            // loadTestRunners(mavenProject, testName);
             Try<TestRunResult> testRunResultTry = this.runner.runList(testsForNewClass);
             List<String> remainTests = new LinkedList<>(testsForNewClass);
             Map<String, TestResult> map = testRunResultTry.get().results();
@@ -475,7 +475,7 @@ public class ParserMojo extends AbstractParserMojo {
                 boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir,
                         moduleName);
                 System.out.println("MVN OUTPUT: " + result);
-                loadTestRunners(mavenProject, testName);
+                // loadTestRunners(mavenProject, testName);
                 Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
                 System.out.println("NEW RUNNING RESULTS: " + innerMap);
                 failedTests = new HashSet<>();
@@ -490,7 +490,7 @@ public class ParserMojo extends AbstractParserMojo {
                     result = MvnCommands.runMvnInstallFromUpper(upperProject,
                             true, upperDir, moduleName);
                     System.out.println("MVN OUTPUT: " + result);
-                    loadTestRunners(mavenProject, testName);
+                    // loadTestRunners(mavenProject, testName);
                     innerMap = this.runner.runList(failedTestsList).get().results();
                     System.out.println("NEW RUNNING RESULTS: " + innerMap);
                     failedTests = new HashSet<>();
