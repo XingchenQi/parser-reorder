@@ -38,6 +38,7 @@ public class ShuffleOrdersUtils {
                 i -= 1;
                 continue;
             }
+            i++;
             orders.add(new LinkedList<>(order));
             // System.out.println("NEW TESTS ORDER: " + order);
             Map<String, TestResult> newResultsRandom = runner.runList(order).get().results();
@@ -96,8 +97,7 @@ public class ShuffleOrdersUtils {
         System.out.println("RUNNING RESULTS WITH ALL TESTS IN ABOVE ORDER: " + newResultsInOrder);
         boolean foundFail = false;
         Set<String> failedTests = new HashSet<>();
-        int i = 0, j = 0;
-        while (i < shuffleTimes) {
+        for (int i = 0; i < shuffleTimes; i++) {
             // Generate a seed and print it
             long generatedSeed = new Random().nextLong();
             System.out.println("Generated seed: " + generatedSeed);
@@ -108,7 +108,7 @@ public class ShuffleOrdersUtils {
             Collections.shuffle(allClasses, random);
 
             System.out.println("NEW CLASSES ORDER: " + allClasses);
-            while (j < shuffleTimes) {
+            for (int j = 0; j < shuffleTimes; j++) {
                 List<String> gatherAllTests = new ArrayList<>();
                 for (String curClass : allClasses){
                     List<String> testsByClass = splitTests.get(curClass);
