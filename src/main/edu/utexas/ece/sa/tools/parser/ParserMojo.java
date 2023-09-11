@@ -476,7 +476,9 @@ public class ParserMojo extends AbstractParserMojo {
                         moduleName);
                 System.out.println("MVN OUTPUT: " + result);
                 // loadTestRunners(mavenProject, testName);
-                Map<String, TestResult> innerMap = this.runner.runList(failedTestsList).get().results();
+                List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
+                        failedTests.size(), runner);
+                Map<String, TestResult> innerMap = this.runner.runList(bestOrder).get().results();
                 System.out.println("NEW RUNNING RESULTS: " + innerMap);
                 failedTests = new HashSet<>();
                 Utils.obtainLastTestResults(innerMap, failedTests);
@@ -491,7 +493,9 @@ public class ParserMojo extends AbstractParserMojo {
                             true, upperDir, moduleName);
                     System.out.println("MVN OUTPUT: " + result);
                     // loadTestRunners(mavenProject, testName);
-                    innerMap = this.runner.runList(failedTestsList).get().results();
+                    bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
+                            failedTests.size(), runner);
+                    innerMap = this.runner.runList(bestOrder).get().results();
                     System.out.println("NEW RUNNING RESULTS: " + innerMap);
                     failedTests = new HashSet<>();
                     Utils.obtainLastTestResults(innerMap, failedTests);
