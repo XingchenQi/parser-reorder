@@ -355,6 +355,9 @@ public class ParserMojo extends AbstractParserMojo {
                             }
                             exist = true;
                             parse();
+                            if (runFromMvn) {
+                                return;
+                            }
                         }
                     }
                 }
