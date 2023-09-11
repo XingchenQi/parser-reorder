@@ -78,6 +78,8 @@ public class ParserMojo extends AbstractParserMojo {
 
     private boolean restore;
 
+    private boolean runFromMvn;
+
     private String classpath() throws DependencyResolutionRequiredException {
         final List<String> elements = new ArrayList<>(mavenProject.getCompileClasspathElements());
         elements.addAll(mavenProject.getRuntimeClasspathElements());
@@ -284,6 +286,12 @@ public class ParserMojo extends AbstractParserMojo {
     protected void searching() {
         try {
             testName = Configuration.config().getProperty("parser.testname", "");
+            String fromMvn = Configuration.config().getProperty("parser.fromMaven", "false");
+            if (fromMvn.equals("false")) {
+                runFromMvn = false;
+            } else if (fromMvn.equals("true")) {
+                runFromMvn = true;
+            }
             // the cachePath for Parser here is ".dtfixingtools".
             if (!Files.exists(ParserPathManager.cachePath())) {
                 Files.createDirectories(ParserPathManager.cachePath());
@@ -374,6 +382,10 @@ public class ParserMojo extends AbstractParserMojo {
             System.out.println("JAVA FILE NAME: " + javaFile.path());
             Refactor refactor = new Refactor(mavenProject, classpath(), projectClassLoader(), this.runner);
             refactor.updateJUnitTestFiles(javaFile);
+            if (runFromMvn) {
+                System.out.println("WILL RUN FROM MAVEN!!!");
+                return;
+            }
             System.out.println("MVN INSTALL FROM THE UPPER LEVEL!");
             boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, false,
                     upperDir, moduleName);
