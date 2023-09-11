@@ -76,6 +76,8 @@ public class ParserMojo extends AbstractParserMojo {
 
     private Map<String, List<String>> curTests;
 
+    private boolean restore;
+
     private String classpath() throws DependencyResolutionRequiredException {
         final List<String> elements = new ArrayList<>(mavenProject.getCompileClasspathElements());
         elements.addAll(mavenProject.getRuntimeClasspathElements());
@@ -323,6 +325,8 @@ public class ParserMojo extends AbstractParserMojo {
                 moduleName = baseDir.toString().substring(upperDir.toString().length() + 1);
             }
 
+            restore = false;
+
             boolean exist = false;
             for (String testClass : testClasses) {
                 if (!testClass.equals(testName)) {
@@ -349,6 +353,9 @@ public class ParserMojo extends AbstractParserMojo {
             }
             if (exist) {
                 System.out.println(testName + " SUCCESSFULLY SPLIT AND MAKE ALL TESTS PASS");
+                if (restore) {
+                    System.out.println(testName + " HAS TESTS RESTORED TO THE ORIGINAL FILE");
+                }
             }
             ShuffleOrdersUtils.checkTestsOrder(curTests, runner);
         } catch (IOException | DependencyResolutionRequiredException exception) {
@@ -492,6 +499,7 @@ public class ParserMojo extends AbstractParserMojo {
                     result = MvnCommands.runMvnInstallFromUpper(upperProject,
                             true, upperDir, moduleName);
                     System.out.println("MVN OUTPUT: " + result);
+                    restore = true;
                     // loadTestRunners(mavenProject, testName);
                     bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
                             failedTests.size(), runner);

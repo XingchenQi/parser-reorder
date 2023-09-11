@@ -82,6 +82,8 @@ public class MvnCommands {
         request.getProperties().setProperty("gpg.skip", "true");
         request.getProperties().setProperty("findbugs.skip", "true");
 
+        request.setMavenOpts("-fn");
+
         request.setUpdateSnapshots(false);
 
         ByteArrayOutputStream baosOutput = new ByteArrayOutputStream();
