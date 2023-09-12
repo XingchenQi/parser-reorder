@@ -368,7 +368,7 @@ public class Refactor {
                     for (MethodDeclaration existingMethod : existingMethods) {
                         BlockStmt existingBs = existingMethod.getBody().get().asBlockStmt();
                         BlockStmt bs = method.getBody().get().asBlockStmt();
-                        existingBs.addStatement(bs);
+                        existingBs.getStatements().addAll(bs.getStatements());
                         existingMethod.setBody(existingBs);
                         for (ReferenceType rt: method.getThrownExceptions()) {
                             if (!existingMethod.getThrownExceptions().contains(rt)) {
