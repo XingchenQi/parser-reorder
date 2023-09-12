@@ -12,6 +12,7 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.ReferenceType;
 import edu.illinois.cs.testrunner.runner.Runner;
 import edu.utexas.ece.sa.tools.parser.JavaFile;
 import edu.utexas.ece.sa.tools.parser.ParserPathManager;
@@ -369,6 +370,11 @@ public class Refactor {
                         BlockStmt bs = method.getBody().get().asBlockStmt();
                         existingBs.addStatement(bs);
                         existingMethod.setBody(existingBs);
+                        for (ReferenceType rt: method.getThrownExceptions()) {
+                            if (!existingMethod.getThrownExceptions().contains(rt)) {
+                                existingMethod.addThrownException(rt);
+                            }
+                        }
                     }
                 }
                 fieldsSet.addAll(getRelatedFields(method, javaFile, false));
