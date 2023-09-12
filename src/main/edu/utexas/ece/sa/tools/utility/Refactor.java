@@ -9,6 +9,7 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import edu.illinois.cs.testrunner.runner.Runner;
@@ -333,6 +334,11 @@ public class Refactor {
             throws DependencyResolutionRequiredException, ClassNotFoundException {
         // method
         List<MethodDeclaration> methods = javaFile.findMethodWithAnnotations(beforeAnnotation);
+        List<MethodDeclaration> existingMethods = javaFile.findMethodWithAnnotations(afterAnnotation);
+        boolean exist = false;
+        if (existingMethods.size() > 0) {
+            exist = true;
+        }
         for (MethodDeclaration method : methods) {
             if (method != null) {
                 method.setStatic(true);
@@ -342,11 +348,13 @@ public class Refactor {
                 for (i = 0; i < methodAnnotations.size(); i++) {
                     AnnotationExpr beforeMethodAnnotation = methodAnnotations.get(i);
                     if (beforeMethodAnnotation.getName().toString().equals(beforeAnnotation)) {
-                        Class clazz = projectClassLoader.loadClass(afterAnnotation);
-                        method.tryAddImportToParentCompilationUnit(clazz);
-                        MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(
-                                JavaParser.parseName(clazz.getSimpleName()));
-                        newAnnotations.add((AnnotationExpr) markerAnnotationExpr);
+                        if (!exist) {
+                            Class clazz = projectClassLoader.loadClass(afterAnnotation);
+                            method.tryAddImportToParentCompilationUnit(clazz);
+                            MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(
+                                    JavaParser.parseName(clazz.getSimpleName()));
+                            newAnnotations.add((AnnotationExpr) markerAnnotationExpr);
+                        }
                     } else if (beforeMethodAnnotation.getName().toString().equals("Override")) {
                         continue;
                     } else {
@@ -354,6 +362,14 @@ public class Refactor {
                     }
                 }
                 method.setAnnotations(newAnnotations);
+                if (exist) {
+                    for (MethodDeclaration existingMethod : existingMethods) {
+                        BlockStmt existingBs = existingMethod.getBody().get().asBlockStmt();
+                        BlockStmt bs = method.getBody().get().asBlockStmt();
+                        existingBs.addStatement(bs);
+                        existingMethod.setBody(existingBs);
+                    }
+                }
                 fieldsSet.addAll(getRelatedFields(method, javaFile, false));
                 methodsSet.addAll(getRelatedMethods(method));
                 changeMethods(method, javaFile);
