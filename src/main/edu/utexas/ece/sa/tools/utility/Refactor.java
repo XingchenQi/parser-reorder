@@ -334,7 +334,8 @@ public class Refactor {
             throws DependencyResolutionRequiredException, ClassNotFoundException {
         // method
         List<MethodDeclaration> methods = javaFile.findMethodWithAnnotations(beforeAnnotation);
-        List<MethodDeclaration> existingMethods = javaFile.findMethodWithAnnotations(afterAnnotation);
+        String keywordInAfterAnnotation = afterAnnotation.substring(afterAnnotation.lastIndexOf(".") + 1);
+        List<MethodDeclaration> existingMethods = javaFile.findMethodWithAnnotations(keywordInAfterAnnotation);
         boolean exist = false;
         if (existingMethods.size() > 0) {
             exist = true;
