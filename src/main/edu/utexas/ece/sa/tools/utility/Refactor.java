@@ -278,7 +278,7 @@ public class Refactor {
                     // rule field
                     for (AnnotationExpr annotationExpr : field.getAnnotations()) {
                         if (annotationExpr.getName().toString().equals("Rule") ||
-                                annotationExpr.getName().toString().equals("@org.junit.Rule")) {
+                                annotationExpr.getName().toString().equals("org.junit.Rule")) {
                             NodeList<AnnotationExpr> ruleFieldAnnotations = field.getAnnotations();
                             int i = 0;
                             for (i = 0; i < ruleFieldAnnotations.size(); i++) {
