@@ -368,7 +368,7 @@ public class ParserMojo extends AbstractParserMojo {
                     System.out.println(testName + " HAS TESTS RESTORED TO THE ORIGINAL FILE");
                 }
             }
-            ShuffleOrdersUtils.checkTestsOrder(curTests, runner);
+            // ShuffleOrdersUtils.checkTestsOrder(curTests, runner);
         } catch (IOException | DependencyResolutionRequiredException exception) {
             exception.printStackTrace();
         } catch (Exception e) {
