@@ -290,9 +290,9 @@ public class Refactor {
                                             JavaParser.parseName(clazz.getSimpleName()));
                                     field.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
                                     break;
-                                } else if (ruleFieldAnnotation.getName().toString().equals("@org.junit.Rule")) {
+                                } else if (ruleFieldAnnotation.getName().toString().equals("org.junit.Rule")) {
                                     MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(
-                                            "@org.junit.ClassRule");
+                                            "org.junit.ClassRule");
                                     field.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
                                 }
                             }
