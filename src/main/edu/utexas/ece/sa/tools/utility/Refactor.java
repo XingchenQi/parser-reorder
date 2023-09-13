@@ -277,7 +277,8 @@ public class Refactor {
                     field.setStatic(true);
                     // rule field
                     for (AnnotationExpr annotationExpr : field.getAnnotations()) {
-                        if (annotationExpr.getName().toString().equals("Rule")) {
+                        if (annotationExpr.getName().toString().equals("Rule") ||
+                                annotationExpr.getName().toString().equals("@org.junit.Rule")) {
                             NodeList<AnnotationExpr> ruleFieldAnnotations = field.getAnnotations();
                             int i = 0;
                             for (i = 0; i < ruleFieldAnnotations.size(); i++) {
@@ -289,6 +290,10 @@ public class Refactor {
                                             JavaParser.parseName(clazz.getSimpleName()));
                                     field.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
                                     break;
+                                } else if (ruleFieldAnnotation.getName().toString().equals("@org.junit.Rule")) {
+                                    MarkerAnnotationExpr markerAnnotationExpr = new MarkerAnnotationExpr(
+                                            "@org.junit.ClassRule");
+                                    field.setAnnotation(i, (AnnotationExpr) markerAnnotationExpr);
                                 }
                             }
                             changeFields(field, javaFile);
