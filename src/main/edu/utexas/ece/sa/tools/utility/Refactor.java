@@ -386,6 +386,11 @@ public class Refactor {
                 changeMethods(method, javaFile);
             }
         }
+        if (exist) {
+            for (MethodDeclaration method : methods) {
+                javaFile.removeMethod(method);
+            }
+        }
     }
 
     protected static Set<String> getRelatedFields(MethodDeclaration md, JavaFile javaFile, boolean flag) {
@@ -466,7 +471,8 @@ public class Refactor {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
                         System.out.println(parentNode);
-                        if (parentNode.toString().equals("MockitoAnnotations.initMocks(this)")) {
+                        if (parentNode.toString().equals("MockitoAnnotations.initMocks(this)") ||
+                                parentNode.toString().equals("MockitoAnnotations.openMocks(this)")) {
                             parentNode.replace(node, new NameExpr("new " +
                                     javaFile.getCurCI().getName().toString() + "()"));
                         } else if (parentNode.toString().equals("this.getClass()")) {
