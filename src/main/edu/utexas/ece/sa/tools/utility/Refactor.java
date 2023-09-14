@@ -475,7 +475,6 @@ public class Refactor {
                 if (node instanceof ThisExpr) {
                     if (node.getParentNode().isPresent()) {
                         Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
-                        System.out.println(parentNode);
                         if (parentNode.toString().equals("MockitoAnnotations.initMocks(this)") ||
                                 parentNode.toString().equals("MockitoAnnotations.openMocks(this)")) {
                             parentNode.replace(node, new NameExpr("new " +
@@ -568,7 +567,6 @@ public class Refactor {
                 Node node = nodes.peek();
                 if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
                     if (node.toString().equals("getClass()")) {
-                        System.out.println(node);
                         Node parentNode = ((MethodCallExpr) node).asMethodCallExpr().getParentNode().get();
                         parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()  + ".class"));
                     } /* else if (node.toString().endsWith(".getClass()")) {

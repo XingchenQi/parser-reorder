@@ -69,7 +69,7 @@ public class MvnCommands {
         request.setGoals(Arrays.asList("clean", "install"));
         request.setBaseDirectory(baseDir);
         request.setProjects(Arrays.asList(moduleName));
-        request.setAlsoMake(true);
+        // request.setAlsoMake(true);
         request.setPomFile(project.getFile());
         request.setProperties(new Properties());
         request.getProperties().setProperty("skipTests", "true");

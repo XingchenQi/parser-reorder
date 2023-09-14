@@ -506,7 +506,7 @@ public class ParserMojo extends AbstractParserMojo {
                 Utils.obtainLastTestResults(innerMap, failedTests);
                 int curNumOfFailedTests = failedTests.size();
                 if (numOfFailedTests == curNumOfFailedTests) {
-                    System.err.println("TESTS ALWAYS FAIL! RESTORE THE ORIGINAL FILE!");
+                    System.out.println("TESTS ALWAYS FAIL! RESTORE THE ORIGINAL FILE!");
                     javaFile1Before.writeAndReloadCompilationUnit();
                     javaFile1 = javaFile1Before;
                     javaFile1.writeAndReloadCompilationUnit();
