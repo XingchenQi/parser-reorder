@@ -142,6 +142,7 @@ public class ShuffleOrdersUtils {
             System.out.println("==========FOUND FAILURES/ERRORS IN CURRENT ABOVE ORDER! " +
                     "PLEASE REMAIN THE ORIGINAL ORDER!==========");
             System.out.println("FOUND " + failedTests.size() + " OD TESTS!!!");
+            System.out.println("Failed Tests: "+failedTests);
         }
     }
 }
