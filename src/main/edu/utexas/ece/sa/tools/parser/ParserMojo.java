@@ -173,10 +173,10 @@ public class ParserMojo extends AbstractParserMojo {
                         // check annotations on all methods to determine which framework to use
                         for (Method meth : allMethods) {
                             for (Annotation a : meth.getDeclaredAnnotations()) {
-                                if (a.toString().equals("@org.junit.Test()")) {
+                                if (a.toString().startsWith("@org.junit.Test(")) {
                                     framework = "JUnit";
                                     break;
-                                } else if (a.toString().equals("@org.junit.jupiter.api.Test()")) {
+                                } else if (a.toString().startsWith("@org.junit.jupiter.api.Test(")) {
                                     framework = "JUnit5";
                                     break;
                                 }
