@@ -497,13 +497,16 @@ public class ParserMojo extends AbstractParserMojo {
                 boolean result = MvnCommands.runMvnInstallFromUpper(upperProject, true, upperDir,
                         moduleName);
                 System.out.println("MVN OUTPUT: " + result);
+                Map<String, TestResult> firstResMap = this.runner.runList(failedTestsList).get().results();
+                failedTests = new HashSet<>();
+                Utils.obtainLastTestResults(firstResMap, failedTests);
                 // loadTestRunners(mavenProject, testName);
                 List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
                         failedTests.size(), runner);
-                Map<String, TestResult> innerMap = this.runner.runList(bestOrder).get().results();
-                System.out.println("NEW RUNNING RESULTS: " + innerMap);
+                Map<String, TestResult> secondResMap = this.runner.runList(bestOrder).get().results();
+                System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
                 failedTests = new HashSet<>();
-                Utils.obtainLastTestResults(innerMap, failedTests);
+                Utils.obtainLastTestResults(secondResMap, failedTests);
                 int curNumOfFailedTests = failedTests.size();
                 if (numOfFailedTests == curNumOfFailedTests) {
                     System.out.println("TESTS ALWAYS FAIL! RESTORE THE ORIGINAL FILE!");
@@ -515,13 +518,16 @@ public class ParserMojo extends AbstractParserMojo {
                             true, upperDir, moduleName);
                     System.out.println("MVN OUTPUT: " + result);
                     restore = true;
+                    firstResMap = this.runner.runList(bestOrder).get().results();
+                    failedTests = new HashSet<>();
+                    Utils.obtainLastTestResults(firstResMap, failedTests);
                     // loadTestRunners(mavenProject, testName);
                     bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
                             failedTests.size(), runner);
-                    innerMap = this.runner.runList(bestOrder).get().results();
-                    System.out.println("NEW RUNNING RESULTS: " + innerMap);
+                    secondResMap = this.runner.runList(bestOrder).get().results();
+                    System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
                     failedTests = new HashSet<>();
-                    Utils.obtainLastTestResults(innerMap, failedTests);
+                    Utils.obtainLastTestResults(secondResMap, failedTests);
                     curNumOfFailedTests = failedTests.size();
                     if (curNumOfFailedTests == numOfFailedTests) {
                         System.out.println("ENCOUNTER INFINITE LOOP!!!");
