@@ -483,7 +483,13 @@ public class Refactor {
                             parentNode.replace(node, new NameExpr(
                                     javaFile.getCurCI().getName().toString() + ".class"));
                         } else {
-                            parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+                            for (Node child : parentNode.getChildNodes()) {
+                                if (child.getClass().getName().equals("com.github.javaparser.ast.expr.SimpleName")) {
+                                    String name = ((SimpleName) child).asString();
+                                    set.add(name);
+                                }
+                            }
+			    parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
                         }
                     }
                 } else if (flag && node instanceof SuperExpr) {
