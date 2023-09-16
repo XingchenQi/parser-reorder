@@ -234,7 +234,7 @@ public class ParserMojo extends AbstractParserMojo {
     public List<String> getOriginalOrder(
             final MavenProject mavenProject,
             TestFramework testFramework) throws IOException {
-        return getOriginalOrder(mavenProject, testFramework, false);
+        return getOriginalOrder(mavenProject, testFramework, true);
     }
 
     public List<String> getOriginalOrder(
