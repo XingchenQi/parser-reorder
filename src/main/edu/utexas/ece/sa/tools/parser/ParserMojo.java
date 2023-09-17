@@ -424,7 +424,7 @@ public class ParserMojo extends AbstractParserMojo {
                     formalFailedTest = formalFailedTest.replace("#", ".");
                     formalFailedTest = formalFailedTest.replace("()", "");
                 }
-                MethodDeclaration md = javaFile.findMethodDeclaration(formalFailedTest);
+                MethodDeclaration md = javaFile.findTestMethodDeclaration(formalFailedTest);
                 javaFile.removeMethod(md);
                 remainTests.remove(failedTest);
             }
@@ -478,7 +478,7 @@ public class ParserMojo extends AbstractParserMojo {
                             this.runner.framework().getDelimiter() + shortFailedTestName);
                     System.out.println("failed test: " + longFailedTestClassName +
                             this.runner.framework().getDelimiter() + shortFailedTestName);
-                    MethodDeclaration md = backupJavaFile.findMethodDeclaration(
+                    MethodDeclaration md = backupJavaFile.findTestMethodDeclaration(
                             testClass + "." + formalShortFailedTestName);
                     newMD.setThrownExceptions(md.getThrownExceptions());
                     newMD.setBody(md.getBody().get());
@@ -541,7 +541,7 @@ public class ParserMojo extends AbstractParserMojo {
                         formalFailedTests = formalFailedTests.replace("#", ".");
                         formalFailedTests = formalFailedTests.replace("()", "");
                     }
-                    MethodDeclaration md = javaFile1.findMethodDeclaration(formalFailedTests);
+                    MethodDeclaration md = javaFile1.findTestMethodDeclaration(formalFailedTests);
                     javaFile1.removeMethod(md);
                     curFailedTests.remove(failedTest);
                 }

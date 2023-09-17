@@ -226,6 +226,28 @@ public class JavaFile {
         return null;
     }
 
+    public MethodDeclaration findTestMethodDeclaration(final String name) {
+        for (final ClassOrInterfaceDeclaration classDeclaration : classList) {
+            for (final BodyDeclaration bodyDeclaration : classDeclaration.getMembers()) {
+                if (bodyDeclaration instanceof MethodDeclaration) {
+                    final MethodDeclaration method = (MethodDeclaration)bodyDeclaration;
+                    final String fullMethodName = getFullyQualifiedMethodName(method, classDeclaration);
+                    // System.out.println("NAME: " + fullMethodName + " : " + name);
+                    for (AnnotationExpr annotationExpr : method.getAnnotations()) {
+                        if (!annotationExpr.getNameAsString().equals("Test")) {
+                            break;
+                        }
+                    }
+                    if (fullMethodName.equals(name)) {
+                        return method;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     public List<MethodDeclaration> findMethodDeclarations(final String name) {
         List<MethodDeclaration> list = new LinkedList<>();
         for (final ClassOrInterfaceDeclaration classDeclaration : classList) {
