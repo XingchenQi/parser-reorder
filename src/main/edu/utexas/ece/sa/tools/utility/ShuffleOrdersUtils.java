@@ -75,6 +75,7 @@ public class ShuffleOrdersUtils {
         } else {
             System.out.println("NO BETTER ORDER THAN ORIGINAL!");
         }
+        shuffleTimes = 5;
         return bestOrder;
     }
 
@@ -92,10 +93,23 @@ public class ShuffleOrdersUtils {
         HashSet<List<String>> allOrders = new HashSet<>();
         allOrders.add(new ArrayList<>(allTests));
         System.out.println("ALL TESTS ORDER: " + allTests);
-        Map<String, TestResult> newResultsInOrder = runner.runList(allTests).get().results();
-        System.out.println("RUNNING RESULTS WITH ALL TESTS IN ABOVE ORDER: " + newResultsInOrder);
-        boolean foundFail = false;
         Set<String> failedTests = new HashSet<>();
+        boolean foundFail = false;
+        Map<String, TestResult> newResultsInOrder = runner.runList(allTests).get().results();
+        for (String key : newResultsInOrder.keySet()) {
+            TestResult testResult = newResultsInOrder.get(key);
+            if (testResult.result().toString().equals("FAILURE")) {
+                System.out.println("FOUND FAILURE IN CURRENT ORDER! " + key);
+                failedTests.add(key);
+                foundFail = true;
+            }
+            if (testResult.result().toString().equals("ERROR")) {
+                System.out.println("FOUND ERROR IN CURRENT ORDER! " + key);
+                failedTests.add(key);
+                foundFail = true;
+            }
+        }
+        System.out.println("RUNNING RESULTS WITH ALL TESTS IN ABOVE ORDER: " + newResultsInOrder);
         for (int i = 0; i < shuffleTimes; i++) {
             // Generate a seed and print it
             long generatedSeed = new Random().nextLong();
