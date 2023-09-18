@@ -39,9 +39,9 @@ public class ShuffleOrdersUtils {
             }
             i++;
             orders.add(new LinkedList<>(order));
-            // System.out.println("NEW TESTS ORDER: " + order);
+            System.out.println("NEW TESTS ORDER: " + order);
             Map<String, TestResult> newResultsRandom = runner.runList(order).get().results();
-            // System.out.println("RUNNING RESULTS WITH NEW ORDER: " + newResultsRandom);
+            System.out.println("RUNNING RESULTS WITH NEW ORDER: " + newResultsRandom);
             int failedCnt = 0;
             boolean skipped = false;
             for (String key : newResultsRandom.keySet()) {
@@ -63,8 +63,8 @@ public class ShuffleOrdersUtils {
             if (failedCnt < threshold) {
                 hasBetterOrder = true;
                 bestOrder = new LinkedList<>(order);
-                // System.out.println("FOUND BETTER ORDER WITH MORE PASSES!");
-                // System.out.println("NEW TESTS ORDER: " + order);
+                System.out.println("FOUND BETTER ORDER WITH MORE PASSES!");
+                System.out.println("NEW TESTS ORDER: " + order);
                 threshold = failedCnt;
             }
         }
@@ -133,9 +133,9 @@ public class ShuffleOrdersUtils {
                     continue;
                 }
                 allOrders.add(gatherAllTests);
-                // System.out.println("NEW TESTS ORDER: " + gatherAllTests);
+                System.out.println("NEW TESTS ORDER: " + gatherAllTests);
                 Map<String, TestResult> newResultsRandom = runner.runList(gatherAllTests).get().results();
-                // System.out.println("RUNNING RESULTS WITH ALL TESTS SHUFFLE: " + newResultsRandom);
+                System.out.println("RUNNING RESULTS WITH ALL TESTS SHUFFLE: " + newResultsRandom);
 
                 for (String key : newResultsRandom.keySet()) {
                     TestResult testResult = newResultsRandom.get(key);
