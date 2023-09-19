@@ -2,17 +2,17 @@ package edu.utexas.ece.sa.tools.utility;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.Range;
+import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
+import com.github.javaparser.ast.visitor.GenericVisitor;
+import com.github.javaparser.ast.visitor.VoidVisitor;
 import edu.illinois.cs.testrunner.runner.Runner;
 import edu.utexas.ece.sa.tools.parser.JavaFile;
 import edu.utexas.ece.sa.tools.parser.ParserPathManager;
@@ -21,6 +21,7 @@ import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.project.MavenProject;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -72,6 +73,27 @@ public class Refactor {
         // After Method
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "After",
                 "org.junit.AfterClass");
+
+        NodeList<ConstructorDeclaration> constructor = new NodeList<>();
+        NodeList<TypeDeclaration<?>> typeDeclarations = javaFile.compilationUnit().getTypes();
+        for (TypeDeclaration typeDec : typeDeclarations) {
+            List<BodyDeclaration> members = new ArrayList<>(typeDec.getMembers());
+            List<BodyDeclaration> membersPendingToRemove = typeDec.getMembers();
+            if (members != null) {
+                for (BodyDeclaration member : members) {
+                    if (member instanceof ConstructorDeclaration) {
+                        BodyDeclaration bd = new InitializerDeclaration();
+                        BlockStmt blockStmt = new BlockStmt();
+                        ConstructorDeclaration m = (ConstructorDeclaration) member;
+                        constructor.add(m);
+                        blockStmt.setStatements(m.getBody().getStatements());
+                        bd.asInitializerDeclaration().setBody(blockStmt);
+                        members.add(bd);
+                        membersPendingToRemove.remove(constructor);
+                    }
+                }
+            }
+        }
 
         if (!lowLevel) return;
         List<JavaFile> javaFileList = new LinkedList<>();
@@ -142,6 +164,27 @@ public class Refactor {
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "AfterEach",
                 "org.junit.jupiter.api.AfterAll");
 
+        NodeList<ConstructorDeclaration> constructor = new NodeList<>();
+        NodeList<TypeDeclaration<?>> typeDeclarations = javaFile.compilationUnit().getTypes();
+        for (TypeDeclaration typeDec : typeDeclarations) {
+            List<BodyDeclaration> members = new ArrayList<>(typeDec.getMembers());
+            List<BodyDeclaration> membersPendingToRemove = typeDec.getMembers();
+            if (members != null) {
+                for (BodyDeclaration member : members) {
+                    if (member instanceof ConstructorDeclaration) {
+                        BodyDeclaration bd = new InitializerDeclaration();
+                        BlockStmt blockStmt = new BlockStmt();
+                        ConstructorDeclaration m = (ConstructorDeclaration) member;
+                        constructor.add(m);
+                        blockStmt.setStatements(m.getBody().getStatements());
+                        bd.asInitializerDeclaration().setBody(blockStmt);
+                        members.add(bd);
+                        membersPendingToRemove.remove(constructor);
+                    }
+                }
+            }
+        }
+        
         if (!lowLevel) return;
         List<JavaFile> javaFileList = new LinkedList<>();
         JavaFile curFile = javaFile;
