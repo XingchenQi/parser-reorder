@@ -74,7 +74,7 @@ public class Refactor {
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "After",
                 "org.junit.AfterClass");
 
-        NodeList<ConstructorDeclaration> constructor = new NodeList<>();
+        NodeList<BodyDeclaration> bds = new NodeList<>();
         NodeList<TypeDeclaration<?>> typeDeclarations = javaFile.compilationUnit().getTypes();
         for (TypeDeclaration typeDec : typeDeclarations) {
             List<BodyDeclaration> members = new ArrayList<>(typeDec.getMembers());
@@ -85,13 +85,13 @@ public class Refactor {
                         BodyDeclaration bd = new InitializerDeclaration();
                         BlockStmt blockStmt = new BlockStmt();
                         ConstructorDeclaration m = (ConstructorDeclaration) member;
-                        constructor.add(m);
                         blockStmt.setStatements(m.getBody().getStatements());
                         bd.asInitializerDeclaration().setBody(blockStmt);
-                        members.add(bd);
-                        membersPendingToRemove.remove(constructor);
+                        bds.add(bd);
+                        membersPendingToRemove.remove(m);
                     }
                 }
+                members.removeAll(bds);
             }
         }
 
@@ -164,7 +164,7 @@ public class Refactor {
         addClassAnnotations(javaFile, fieldsSet, methodsSet, "AfterEach",
                 "org.junit.jupiter.api.AfterAll");
 
-        NodeList<ConstructorDeclaration> constructor = new NodeList<>();
+        NodeList<BodyDeclaration> bds = new NodeList<>();
         NodeList<TypeDeclaration<?>> typeDeclarations = javaFile.compilationUnit().getTypes();
         for (TypeDeclaration typeDec : typeDeclarations) {
             List<BodyDeclaration> members = new ArrayList<>(typeDec.getMembers());
@@ -175,16 +175,16 @@ public class Refactor {
                         BodyDeclaration bd = new InitializerDeclaration();
                         BlockStmt blockStmt = new BlockStmt();
                         ConstructorDeclaration m = (ConstructorDeclaration) member;
-                        constructor.add(m);
                         blockStmt.setStatements(m.getBody().getStatements());
                         bd.asInitializerDeclaration().setBody(blockStmt);
-                        members.add(bd);
-                        membersPendingToRemove.remove(constructor);
+                        bds.add(bd);
+                        membersPendingToRemove.remove(m);
                     }
                 }
+                members.removeAll(bds);
             }
         }
-        
+
         if (!lowLevel) return;
         List<JavaFile> javaFileList = new LinkedList<>();
         JavaFile curFile = javaFile;
