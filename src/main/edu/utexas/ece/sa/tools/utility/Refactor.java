@@ -91,7 +91,7 @@ public class Refactor {
                         membersPendingToRemove.remove(m);
                     }
                 }
-                members.removeAll(bds);
+                members.addAll(bds);
             }
         }
 
@@ -181,7 +181,7 @@ public class Refactor {
                         membersPendingToRemove.remove(m);
                     }
                 }
-                members.removeAll(bds);
+                members.addAll(bds);
             }
         }
 
