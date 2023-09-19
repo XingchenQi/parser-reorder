@@ -87,11 +87,12 @@ public class Refactor {
                         ConstructorDeclaration m = (ConstructorDeclaration) member;
                         blockStmt.setStatements(m.getBody().getStatements());
                         bd.asInitializerDeclaration().setBody(blockStmt);
+                        bd.asInitializerDeclaration().setStatic(true);
                         bds.add(bd);
                         membersPendingToRemove.remove(m);
                     }
                 }
-                members.addAll(bds);
+                membersPendingToRemove.addAll(bds);
             }
         }
 
@@ -177,11 +178,12 @@ public class Refactor {
                         ConstructorDeclaration m = (ConstructorDeclaration) member;
                         blockStmt.setStatements(m.getBody().getStatements());
                         bd.asInitializerDeclaration().setBody(blockStmt);
+                        bd.asInitializerDeclaration().setStatic(true);
                         bds.add(bd);
                         membersPendingToRemove.remove(m);
                     }
                 }
-                members.addAll(bds);
+                membersPendingToRemove.addAll(bds);
             }
         }
 
