@@ -414,9 +414,14 @@ public class ParserMojo extends AbstractParserMojo {
                 return;
             }
             List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(testsForNewClass,
-                    failedTests.size(), runner);
-            map = this.runner.runList(bestOrder).get().results();
-            failedTests = new HashSet<>();
+                    failedTests, runner);
+            List<String> actualBestOrder = new ArrayList<>();
+            for (String str : bestOrder) {
+                if (!failedTests.contains(str)) {
+                    actualBestOrder.add(str);
+                }
+            }
+            map = this.runner.runList(actualBestOrder).get().results();
             Utils.obtainLastTestResults(map, failedTests);
             for (String failedTest : failedTests) {
                 String formalFailedTest = failedTest;
@@ -502,10 +507,9 @@ public class ParserMojo extends AbstractParserMojo {
                 Utils.obtainLastTestResults(firstResMap, failedTests);
                 // loadTestRunners(mavenProject, testName);
                 List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
-                        failedTests.size(), runner);
+                        failedTests, runner);
                 Map<String, TestResult> secondResMap = this.runner.runList(bestOrder).get().results();
                 System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
-                failedTests = new HashSet<>();
                 Utils.obtainLastTestResults(secondResMap, failedTests);
                 int curNumOfFailedTests = failedTests.size();
                 if (numOfFailedTests == curNumOfFailedTests) {
@@ -523,10 +527,9 @@ public class ParserMojo extends AbstractParserMojo {
                     Utils.obtainLastTestResults(firstResMap, failedTests);
                     // loadTestRunners(mavenProject, testName);
                     bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
-                            failedTests.size(), runner);
+                            failedTests, runner);
                     secondResMap = this.runner.runList(bestOrder).get().results();
                     System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
-                    failedTests = new HashSet<>();
                     Utils.obtainLastTestResults(secondResMap, failedTests);
                     curNumOfFailedTests = failedTests.size();
                     if (curNumOfFailedTests == numOfFailedTests) {

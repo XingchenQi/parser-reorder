@@ -9,11 +9,13 @@ public class ShuffleOrdersUtils {
     // Total test order shuffle times
     private static int shuffleTimes = 5;
 
-    public static List<String> shuffleAllTests(List<String> originalTests, int threshold, Runner runner){
+    public static List<String> shuffleAllTests(List<String> originalTests, Set<String> failedTests, Runner runner){
         List<String> order = new LinkedList<>(originalTests);
         List<String> bestOrder = new LinkedList<>(originalTests);
         Set<List<String>> orders = new HashSet<>();
         orders.add(new LinkedList<>(originalTests));
+        Set<String> initialFailedTests = new HashSet<>(failedTests);
+        int threshold = initialFailedTests.size();
 
         int size = order.size();
         if (size == 1) {
@@ -25,6 +27,7 @@ public class ShuffleOrdersUtils {
         boolean hasBetterOrder = false;
         int i = 0;
         while (i < shuffleTimes) {
+            Set<String> curFailedTests = new HashSet<>();
             // Generate a seed and print it
             long generatedSeed = new Random().nextLong();
             // System.out.println("Generated seed: " + generatedSeed);
@@ -48,9 +51,11 @@ public class ShuffleOrdersUtils {
                 TestResult testResult = newResultsRandom.get(key);
                 if (testResult.result().toString().equals("FAILURE")) {
                     failedCnt++;
+                    curFailedTests.add(key);
                 }
                 if (testResult.result().toString().equals("ERROR")) {
                     failedCnt++;
+                    curFailedTests.add(key);
                 }
                 if (testResult.result().toString().equals("SKIPPED")) {
                     skipped = true;
@@ -66,6 +71,7 @@ public class ShuffleOrdersUtils {
                 System.out.println("FOUND BETTER ORDER WITH MORE PASSES!");
                 System.out.println("NEW TESTS ORDER: " + order);
                 threshold = failedCnt;
+                failedTests = curFailedTests;
             }
         }
         if (hasBetterOrder) {
@@ -73,6 +79,7 @@ public class ShuffleOrdersUtils {
             System.out.println("THE BEST ORDER IN THIS CLASS IS: ");
             System.out.println(bestOrder);
         } else {
+            failedTests = initialFailedTests;
             System.out.println("NO BETTER ORDER THAN ORIGINAL!");
         }
         shuffleTimes = 5;
