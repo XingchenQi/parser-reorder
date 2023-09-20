@@ -436,11 +436,11 @@ public class Refactor {
                 changeMethods(method, javaFile);
             }
         }
-        if (exist) {
+        /* if (exist) {
             for (MethodDeclaration method : methods) {
                 javaFile.removeMethod(method);
             }
-        }
+        } */
     }
 
     protected static Set<String> getRelatedFields(MethodDeclaration md, JavaFile javaFile, boolean flag) {
