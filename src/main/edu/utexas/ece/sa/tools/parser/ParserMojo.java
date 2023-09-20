@@ -508,7 +508,13 @@ public class ParserMojo extends AbstractParserMojo {
                 // loadTestRunners(mavenProject, testName);
                 List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
                         failedTests, runner);
-                Map<String, TestResult> secondResMap = this.runner.runList(bestOrder).get().results();
+                List<String> actualBestOrder = new ArrayList<>();
+                for (String str : bestOrder) {
+                    if (!failedTests.contains(str)) {
+                        actualBestOrder.add(str);
+                    }
+                }
+                Map<String, TestResult> secondResMap = this.runner.runList(actualBestOrder).get().results();
                 System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
                 Utils.obtainLastTestResults(secondResMap, failedTests);
                 int curNumOfFailedTests = failedTests.size();
@@ -528,7 +534,13 @@ public class ParserMojo extends AbstractParserMojo {
                     // loadTestRunners(mavenProject, testName);
                     bestOrder = ShuffleOrdersUtils.shuffleAllTests(failedTestsList,
                             failedTests, runner);
-                    secondResMap = this.runner.runList(bestOrder).get().results();
+                    actualBestOrder = new ArrayList<>();
+                    for (String str : bestOrder) {
+                        if (!failedTests.contains(str)) {
+                            actualBestOrder.add(str);
+                        }
+                    }
+                    secondResMap = this.runner.runList(actualBestOrder).get().results();
                     System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
                     Utils.obtainLastTestResults(secondResMap, failedTests);
                     curNumOfFailedTests = failedTests.size();
