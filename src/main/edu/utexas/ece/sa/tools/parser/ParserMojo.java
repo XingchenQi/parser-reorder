@@ -415,6 +415,11 @@ public class ParserMojo extends AbstractParserMojo {
             }
             List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(testsForNewClass,
                     failedTests, runner);
+            if (failedTests.size() == 0) {
+                curTests = new HashMap<>();
+                curTests.put(testClass, testsForNewClass);
+                return;
+            }
             List<String> actualBestOrder = new ArrayList<>();
             for (String str : bestOrder) {
                 if (!failedTests.contains(str)) {
