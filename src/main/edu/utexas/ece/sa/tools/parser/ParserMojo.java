@@ -426,8 +426,10 @@ public class ParserMojo extends AbstractParserMojo {
                     actualBestOrder.add(str);
                 }
             }
-            map = this.runner.runList(actualBestOrder).get().results();
-            Utils.obtainLastTestResults(map, failedTests);
+            if (actualBestOrder.size() > 0) {
+                map = this.runner.runList(actualBestOrder).get().results();
+                Utils.obtainLastTestResults(map, failedTests);
+            }
             for (String failedTest : failedTests) {
                 String formalFailedTest = failedTest;
                 if (failedTest.contains("#") || failedTest.contains("()")) {
@@ -519,9 +521,11 @@ public class ParserMojo extends AbstractParserMojo {
                         actualBestOrder.add(str);
                     }
                 }
-                Map<String, TestResult> secondResMap = this.runner.runList(actualBestOrder).get().results();
-                System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
-                Utils.obtainLastTestResults(secondResMap, failedTests);
+                if (actualBestOrder.size() > 0) {
+                    Map<String, TestResult> secondResMap = this.runner.runList(actualBestOrder).get().results();
+                    System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
+                    Utils.obtainLastTestResults(secondResMap, failedTests);
+                }
                 int curNumOfFailedTests = failedTests.size();
                 if (numOfFailedTests == curNumOfFailedTests) {
                     System.out.println("TESTS ALWAYS FAIL! RESTORE THE ORIGINAL FILE!");
@@ -545,9 +549,11 @@ public class ParserMojo extends AbstractParserMojo {
                             actualBestOrder.add(str);
                         }
                     }
-                    secondResMap = this.runner.runList(actualBestOrder).get().results();
-                    System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
-                    Utils.obtainLastTestResults(secondResMap, failedTests);
+                    if (bestOrder.size() > 0) {
+                        Map<String, TestResult> secondResMap = this.runner.runList(actualBestOrder).get().results();
+                        System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
+                        Utils.obtainLastTestResults(secondResMap, failedTests);
+                    }
                     curNumOfFailedTests = failedTests.size();
                     if (curNumOfFailedTests == numOfFailedTests) {
                         System.out.println("ENCOUNTER INFINITE LOOP!!!");
