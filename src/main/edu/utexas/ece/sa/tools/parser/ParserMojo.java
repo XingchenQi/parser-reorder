@@ -549,7 +549,7 @@ public class ParserMojo extends AbstractParserMojo {
                             actualBestOrder.add(str);
                         }
                     }
-                    if (bestOrder.size() > 0) {
+                    if (actualBestOrder.size() > 0) {
                         Map<String, TestResult> secondResMap = this.runner.runList(actualBestOrder).get().results();
                         System.out.println("NEW RUNNING RESULTS FOR THE FAILED TESTS: " + secondResMap);
                         Utils.obtainLastTestResults(secondResMap, failedTests);
