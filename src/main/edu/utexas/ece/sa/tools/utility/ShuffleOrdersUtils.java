@@ -71,7 +71,7 @@ public class ShuffleOrdersUtils {
                 System.out.println("FOUND BETTER ORDER WITH MORE PASSES!");
                 System.out.println("NEW TESTS ORDER: " + order);
                 threshold = failedCnt;
-                failedTests = curFailedTests;
+                failedTests = new HashSet<>(curFailedTests);
             }
         }
         if (hasBetterOrder) {
