@@ -95,6 +95,10 @@ public class Refactor {
                 membersPendingToRemove.addAll(bds);
             }
         }
+        for (BodyDeclaration bd : bds) {
+            methodsSet.addAll(getRelatedMethods(bd.asInitializerDeclaration()));
+            fieldsSet.addAll(getRelatedFields(bd.asInitializerDeclaration(), javaFile, false));
+        }
 
         if (!lowLevel) return;
         List<JavaFile> javaFileList = new LinkedList<>();
@@ -185,6 +189,10 @@ public class Refactor {
                 }
                 membersPendingToRemove.addAll(bds);
             }
+        }
+        for (BodyDeclaration bd : bds) {
+            methodsSet.addAll(getRelatedMethods(bd.asInitializerDeclaration()));
+            fieldsSet.addAll(getRelatedFields(bd.asInitializerDeclaration(), javaFile, false));
         }
 
         if (!lowLevel) return;
@@ -559,6 +567,112 @@ public class Refactor {
         return set;
     }
 
+    protected static Set<String> getRelatedFields(InitializerDeclaration bd, JavaFile javaFile, boolean flag) {
+        Map<String, Range> variableNameMap = new HashMap<>();
+        Set<String> set = new HashSet<>();
+        Map<VariableDeclarator, Range> localMap = new HashMap<>();
+        List<Node> nodesList = new LinkedList<>();
+        try {
+            getUpperLevelClasses(javaFile);
+        } catch (IOException | DependencyResolutionRequiredException ex) {
+            ex.printStackTrace();
+        }
+        for (Statement stmt : bd.asInitializerDeclaration().getBody().getStatements()) {
+            Queue<Node> nodes = new ArrayDeque<>();
+            nodes.add(stmt);
+            while(!nodes.isEmpty()) {
+                Node node = nodes.peek();
+                if (node instanceof VariableDeclarationExpr) {
+                    NodeList<VariableDeclarator> variableDeclarators =
+                            ((VariableDeclarationExpr) node).asVariableDeclarationExpr().getVariables();
+                    for (VariableDeclarator variableDeclarator: variableDeclarators) {
+                        Node parentNodeForVD = variableDeclarator.getParentNode().get();
+                        while (true) {
+                            if (parentNodeForVD.getClass().getName().equals(
+                                    "com.github.javaparser.ast.stmt.BlockStmt")) {
+                                localMap.put(variableDeclarator, parentNodeForVD.getRange().get());
+                                break;
+                            }
+                            parentNodeForVD = parentNodeForVD.getParentNode().get();
+                        }
+                    }
+                }
+                if (node.getChildNodes().size() == 1) {
+                    if (node.getChildNodes().get(0).getClass().getName().equals(
+                            "com.github.javaparser.ast.expr.SimpleName")) {
+                        Node potentialNode = node.getChildNodes().get(0);
+                        if (node.getClass().getName().equals("com.github.javaparser.ast.expr.NameExpr")) {
+                            String name = ((NameExpr) node).asNameExpr().getNameAsString();
+                            if (potentialNode.getRange().isPresent()) {
+                                variableNameMap.put(name, potentialNode.getRange().get());
+                            }
+                        }
+                    }
+                }
+                if (node instanceof FieldAccessExpr) {
+                    for (Node ni : node.getChildNodes()) {
+                        if (ni.getClass().getName().equals("com.github.javaparser.ast.expr.SimpleName")) {
+                            Node potentialNode = ni;
+                            String name = ((SimpleName) potentialNode).asString();
+                            variableNameMap.put(name, potentialNode.getRange().get());
+                        }
+                    }
+                }
+                nodes.poll();
+                for (Node node1 : node.getChildNodes()) {
+                    nodes.add(node1);
+                    nodesList.add(node1);
+                }
+            }
+            for (String variableName : variableNameMap.keySet()) {
+                Range variableRange = variableNameMap.get(variableName);
+                boolean contain = false;
+                for (VariableDeclarator variableDeclarator : localMap.keySet()) {
+                    if (variableDeclarator.getNameAsString().equals(variableName)) {
+                        Range blockRange = localMap.get(variableDeclarator);
+                        if (blockRange.contains(variableRange)) {
+                            contain = true;
+                            break;
+                        }
+                    }
+                }
+                if (contain == false) {
+                    set.add(variableName);
+                }
+            }
+            for (Node node : nodesList) {
+                if (node instanceof ThisExpr) {
+                    if (node.getParentNode().isPresent()) {
+                        Node parentNode = ((ThisExpr) node).asThisExpr().getParentNode().get();
+                        if (parentNode.toString().equals("MockitoAnnotations.initMocks(this)") ||
+                                parentNode.toString().equals("MockitoAnnotations.openMocks(this)")) {
+                            parentNode.replace(node, new NameExpr("new " +
+                                    javaFile.getCurCI().getName().toString() + "()"));
+                        } else if (parentNode.toString().equals("this.getClass()")) {
+                            parentNode.replace(node, new NameExpr(
+                                    javaFile.getCurCI().getName().toString() + ".class"));
+                        } else {
+                            for (Node child : parentNode.getChildNodes()) {
+                                if (child.getClass().getName().equals("com.github.javaparser.ast.expr.SimpleName")) {
+                                    String name = ((SimpleName) child).asString();
+                                    set.add(name);
+                                }
+                            }
+                            parentNode.replace(node, new NameExpr(javaFile.getCurCI().getName().toString()));
+                        }
+                    }
+                } else if (flag && node instanceof SuperExpr) {
+                    if (node.getParentNode().isPresent()) {
+                        Node parentNode = ((SuperExpr) node).asSuperExpr().getParentNode().get();
+                        parentNode.replace(node, new NameExpr(
+                                javaFile.getExtendedJavaFile().getCurCI().getNameAsString()));
+                    }
+                }
+            }
+        }
+        return set;
+    }
+
     protected static Set<String> getRelatedFields(FieldDeclaration fd, JavaFile javaFile) {
         Set<String> set = new HashSet<>();
         Map<String, Range> variableNameMap = new HashMap<>();
@@ -604,6 +718,25 @@ public class Refactor {
     protected static Set<String> getRelatedMethods(MethodDeclaration md) {
         Set<String> set = new HashSet<>();
         for (Statement stmt : md.getBody().get().getStatements()) {
+            Queue<Node> nodes = new ArrayDeque<>();
+            nodes.add(stmt);
+            while(!nodes.isEmpty()) {
+                Node node = nodes.peek();
+                if (node.getClass().getName().equals("com.github.javaparser.ast.expr.MethodCallExpr")) {
+                    set.add(((MethodCallExpr) node).asMethodCallExpr().getName().asString());
+                }
+                nodes.poll();
+                for (Node node1 : node.getChildNodes()) {
+                    nodes.add(node1);
+                }
+            }
+        }
+        return set;
+    }
+
+    protected static Set<String> getRelatedMethods(InitializerDeclaration bd) {
+        Set<String> set = new HashSet<>();
+        for (Statement stmt : bd.getBody().getStatements()) {
             Queue<Node> nodes = new ArrayDeque<>();
             nodes.add(stmt);
             while(!nodes.isEmpty()) {
