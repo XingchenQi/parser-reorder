@@ -306,12 +306,22 @@ public class Refactor {
             }
         }
         Set<String> newFieldsSet = new HashSet<>();
-        for (String fieldName : fieldsSet) {
-            for (JavaFile javaFile1 : javaFileList) {
-                FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
-                if (field != null) {
-                    newFieldsSet.addAll(getRelatedFields(field, javaFile1));
+        Set<String> finishedSet = new HashSet<>();
+        while (true) {
+            newFieldsSet = new HashSet<>();
+            for (String fieldName : fieldsSet) {
+                if (finishedSet.contains(fieldName)) continue;
+                finishedSet.add(fieldName);
+                for (JavaFile javaFile1 : javaFileList) {
+                    FieldDeclaration field = javaFile1.findFieldDeclaration(fieldName);
+                    if (field != null) {
+                        newFieldsSet.addAll(getRelatedFields(field, javaFile1));
+                    }
                 }
+            }
+            fieldsSet.addAll(newFieldsSet);
+            if (newFieldsSet.size() == 0) {
+                break;
             }
         }
         fieldsSet.addAll(newFieldsSet);
