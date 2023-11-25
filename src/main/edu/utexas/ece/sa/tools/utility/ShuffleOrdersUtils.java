@@ -98,7 +98,7 @@ public class ShuffleOrdersUtils {
     }
 
     public static int runTestsInOrder(List<String> testOrder, Runner runner) {
-        System.out.println("RUNNING RESULTS WITH ORDER: " + testOrder);
+        //System.out.println("RUNNING RESULTS WITH ORDER: " + testOrder);
         Map<String, TestResult> newResults = runner.runList(testOrder).get().results();
         Set<String> curFailedTests = new HashSet<>();
         int skippedTests=0;
@@ -125,9 +125,6 @@ public class ShuffleOrdersUtils {
         int minFailures=originalTests.size();
         for (int i=0;i<permutations.size();i++) {
             List<String> testOrder=permutations.get(i);
-            if(minFailures==0){
-                return minFailures;
-            }
             int failures = runTestsInOrder(testOrder,runner);
             //int failures=runTestsInOrderCli(testOrder);
             if (failures < minFailures) {
@@ -192,9 +189,8 @@ public class ShuffleOrdersUtils {
             cnt.incrementAndGet();
             System.out.println("RUNNING RESULTS WITH NEW ORDER: " + failCount);
             System.out.println("Failed Tests: "+ curFailedTests);
-            if(failCount<=failedTests.size()){
+            if(failCount<failedTests.size()){
                 minTests=Math.min(minTests,getFailedCntNew(tempOrder,curFailedTests,runner,cnt,visited));
-                return minTests;
             }
         }
         return minTests;
@@ -207,18 +203,21 @@ public class ShuffleOrdersUtils {
 
         System.out.println("ORIGINAL TESTS ORDER: " + originalTests);
         System.out.println("INITIAL FAILED COUNTS: " + failedTests.size());
-//        int leastFailedCnt;
-//        if(originalTests.size()>=7){
-//            leastFailedCnt=getFailedByRandom(originalTests, runner);
-//            System.out.println("=====START PRINTING FAILED COUNTS IN RANDOM 1000=====\n");
-//            System.out.println("Least failed cnt: "+ leastFailedCnt+" From all tests: "+originalTests.size());
-//        }else{
-//            leastFailedCnt=getFailedByBruteForce(originalTests,runner);
-//            System.out.println("=====START PRINTING FAILED COUNTS IN BRUTE FORCE=====\n");
-//            System.out.println("Least failed cnt: "+ leastFailedCnt+" From all tests: "+originalTests.size());
-//        }
+        int leastFailedCnt;
+        if(originalTests.size()>7){
+            leastFailedCnt=getFailedByRandom(originalTests, runner);
+            System.out.println("=====START PRINTING FAILED COUNTS IN RANDOM 1000=====\n");
+            System.out.println("Least failed cnt: "+ leastFailedCnt+" From all tests: "+originalTests.size());
+        }else{
+            leastFailedCnt=getFailedByBruteForce(originalTests,runner);
+            System.out.println("=====START PRINTING FAILED COUNTS IN BRUTE FORCE=====\n");
+            System.out.println("Least failed cnt: "+ leastFailedCnt+" From all tests: "+originalTests.size());
+        }
 
-        //failedTests=orderFailedTestsCache.get(originalTests);
+        if(orderFailedTestsCache.containsKey(originalTests)){
+            failedTests=orderFailedTestsCache.get(originalTests);
+        }
+
 
         int num=5;
         if(originalTests.size()<=2){
