@@ -408,11 +408,11 @@ public class ParserMojo extends AbstractParserMojo {
             System.out.println(map);
             Set<String> failedTests = new HashSet<>();
             Utils.obtainLastTestResults(map, failedTests);
-            if (failedTests.size() == 0) {
-                curTests = new HashMap<>();
-                curTests.put(testClass, testsForNewClass);
-                return;
-            }
+//            if (failedTests.size() == 0) {
+//                curTests = new HashMap<>();
+//                curTests.put(testClass, testsForNewClass);
+//                return;
+//            }
             List<String> bestOrder = ShuffleOrdersUtils.shuffleAllTests(testsForNewClass,
                     failedTests, runner);
             if (failedTests.size() == 0) {
@@ -451,8 +451,7 @@ public class ParserMojo extends AbstractParserMojo {
                 System.exit(0);
             }
             split(failedTests);
-        } catch (IOException | DependencyResolutionRequiredException
-                | ClassNotFoundException | MavenInvocationException ioException) {
+        } catch (IOException | DependencyResolutionRequiredException | ClassNotFoundException | MavenInvocationException | InterruptedException ioException) {
             ioException.printStackTrace();
         }
     }
@@ -575,8 +574,7 @@ public class ParserMojo extends AbstractParserMojo {
                 javaFile1.writeAndReloadCompilationUnit();
                 index++;
             }
-        } catch (IOException | MavenInvocationException |
-                DependencyResolutionRequiredException | ClassNotFoundException exception) {
+        } catch (IOException | MavenInvocationException | DependencyResolutionRequiredException | ClassNotFoundException | InterruptedException exception) {
             exception.printStackTrace();
         }
     }

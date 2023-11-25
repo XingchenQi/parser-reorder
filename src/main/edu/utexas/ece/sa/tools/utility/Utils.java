@@ -34,7 +34,7 @@ public class Utils {
             }
             if (testResult.result().toString().equals("SKIPPED")) {
                 System.out.println("TESTS SKIPPED!!!");
-                System.exit(0);
+                //System.exit(0);
             }
         }
     }
